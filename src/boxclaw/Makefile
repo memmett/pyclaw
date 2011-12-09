@@ -1,7 +1,7 @@
-BOXLIB_HOME ?= /home/memmett/projects/BoxLib
+# BoxLib makefile
 
-MPI  := t
-COMP := gfortran
+#MPI  := t
+#COMP := gfortran
 
 include $(BOXLIB_HOME)/Tools/F_mk/GMakedefs.mak
 
