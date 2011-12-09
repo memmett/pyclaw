@@ -1,0 +1,18 @@
+This directory constains the BoxLib based version of PyClaw.
+
+To obtain BoxLib, please visit
+
+  https://ccse.lbl.gov/pub/BoxLib/
+
+After downloading and extracting the BoxLib tarball, please set the
+BOXLIB_HOME environment variable accordingly:
+
+$ cd BoxLib
+$ export BOXLIB_HOME=$PWD
+
+Once you have BoxLib, you can compile a standalone Python module that
+contains BoxLib and PyBoxLib by running make:
+
+$ make
+
+
