@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
-    
-def acoustics(use_petsc=False,kernel_language='Fortran',solver_type='classic',iplot=False,htmlplot=False,outdir='./_output',weno_order=5):
+
+def acoustics(use_petsc=False,use_boxlib=False,kernel_language='Fortran',solver_type='classic',iplot=False,htmlplot=False,outdir='./_output',weno_order=5):
     """
     This example solves the 1-dimensional acoustics equations in a homogeneous
     medium.
@@ -13,6 +13,8 @@ def acoustics(use_petsc=False,kernel_language='Fortran',solver_type='classic',ip
     #=================================================================
     if use_petsc:
         import petclaw as pyclaw
+    elif use_boxlib:
+        import boxclaw as pyclaw
     else:
         import pyclaw
 
@@ -29,9 +31,9 @@ def acoustics(use_petsc=False,kernel_language='Fortran',solver_type='classic',ip
     solver.kernel_language=kernel_language
     from riemann import rp_acoustics
     solver.mwaves=rp_acoustics.mwaves
-    if kernel_language=='Python': 
+    if kernel_language=='Python':
         solver.rp = rp_acoustics.rp_acoustics_1d
- 
+
     solver.limiters = pyclaw.limiters.tvd.MC
     solver.bc_lower[0] = pyclaw.BC.periodic
     solver.bc_upper[0] = pyclaw.BC.periodic
@@ -61,7 +63,7 @@ def acoustics(use_petsc=False,kernel_language='Fortran',solver_type='classic',ip
     beta=100; gamma=0; x0=0.75
     state.q[0,:] = exp(-beta * (xc-x0)**2) * cos(gamma * (xc - x0))
     state.q[1,:] = 0.
-    
+
     #========================================================================
     # Set up the controller object
     #========================================================================
