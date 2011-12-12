@@ -1,6 +1,9 @@
+BoxCLAW
+=======
+
 This directory constains the BoxLib based version of PyClaw.
 
-To obtain BoxLib, please visit
+To obtain BoxLib, please visit:
 
   https://ccse.lbl.gov/pub/BoxLib/
 
@@ -13,6 +16,14 @@ $ export BOXLIB_HOME=$PWD
 Once you have BoxLib, you can compile a standalone Python module that
 contains BoxLib and PyBoxLib by running make:
 
+$ cd $PYCLAW/src/boxclaw
 $ make
 
 
+TODO
+====
+
+* cfl.py - currently uses PETSc, could probably use plain mpi4py
+* controller.py - currently calls fboxlib, just use mpi4py instead
+* state.py - needs lots of work...
+* grid.py - boundary conditions need work...
