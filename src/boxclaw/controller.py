@@ -6,7 +6,7 @@ class Controller(pyclawController):
     def __init__(self):
         super(Controller,self).__init__()
 
-        self.output_format = 'ascii'
+        self.output_format = 'boxlib'
 
     def is_proc_0(self):
         from pyboxlib import fboxlib

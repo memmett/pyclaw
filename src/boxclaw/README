@@ -20,10 +20,23 @@ $ cd $PYCLAW/src/boxclaw
 $ make
 
 
+Known issues
+============
+
+Currently only single processors runs work since communicating
+interleaved multifabs is not implemented yet.
+
+
 TODO
 ====
 
-* cfl.py - currently uses PETSc, could probably use plain mpi4py
-* controller.py - currently calls fboxlib, just use mpi4py instead
-* state.py - needs lots of work...
-* grid.py - boundary conditions need work...
+High priority
+-------------
+
+* state.py - create boxes and set ranges appropriately when running multiprocessors
+
+Low priority
+------------
+
+* cfl.py - currently uses PETSc, change to use mpi4py or boxlib
+* controller.py - change output format?

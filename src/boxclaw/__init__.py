@@ -1,4 +1,4 @@
-"""Main boxclaw package"""
+"""Main BoxClaw package."""
 
 import os
 import logging, logging.config

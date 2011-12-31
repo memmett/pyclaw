@@ -1,6 +1,4 @@
-r"""
-Module for the cfl object, responsible for computing and enforcing the Courant-Friedrichs-Lewy condition
-"""
+"""BoxClaw CFL class."""
 
 class CFL(object):
     def __init__(self, global_max):
@@ -8,7 +6,7 @@ class CFL(object):
         self._local_max = global_max
         self._global_max = global_max
         self._reduce_vec = PETSc.Vec().createWithArray([0])
-        
+
     def get_global_max(self):
         r"""
         Compute the maximum CFL number over all processes for the current step.

@@ -1,152 +1,19 @@
-"""BoxClaw State class."""
+"""BoxClaw State class.
+
+This class follows the PetClaw state class fairly closely.
+
+"""
 
 import pyclaw.state
+import boxclaw.grid
+
+from pyboxlib import fboxlib, layout, multifab
 
 
 class State(pyclaw.state.State):
-    """See the corresponding PyClaw class documentation."""
-
-    # def meqn():
-    #     doc = r"""(int) - Number of unknowns (components of q)"""
-    #     def fget(self):
-    #         if self.q_mf is None:
-    #             raise Exception('state.meqn has not been set.')
-    #         else: return self.q_mf.dof
-    #     return locals()
-    # meqn = property(**meqn())
-
-    # def mp():
-    #     doc = r"""(int) - Number of derived quantities (components of p)"""
-    #     def fset(self,mp):
-    #         if self._p_mf is not None:
-    #             raise Exception('You cannot change state.mp after p is initialized.')
-    #         else:
-    #             self._p_mf = self._create_MF(mp)
-    #             self.gpVec = self._p_mf.createGlobalVector()
-    #     def fget(self):
-    #         if self._p_mf is None:
-    #             raise Exception('state.mp has not been set.')
-    #         else: return self._p_mf.dof
-    #     return locals()
-    # mp = property(**mp())
-
-    # def mF():
-    #     doc = r"""(int) - Number of derived quantities (components of p)"""
-    #     def fset(self,mF):
-    #         if self._F_mf is not None:
-    #             raise Exception('You cannot change state.mp after p is initialized.')
-    #         else:
-    #             self._F_mf = self._create_MF(mF)
-    #             self.gFVec = self._F_mf.createGlobalVector()
-    #     def fget(self):
-    #         if self._F_mf is None:
-    #             raise Exception('state.mF has not been set.')
-    #         else: return self._F_mf.dof
-    #     return locals()
-    # mF = property(**mF())
-
-    # def maux():
-    #     doc = r"""(int) - Number of auxiliary fields"""
-    #     def fget(self):
-    #         if self.aux_mf is None: return 0
-    #         else: return self.aux_mf.dof
-    #     return locals()
-    # maux = property(**maux())
-
-    def q():
-        """Array to store solution (q) values.
-
-        Settting state.meqn automatically allocates space for q, as does
-        setting q itself.
-
-        Assume we're using the first box of the multifab for now.
-        """
-        def fget(self):
-            if self.q_mf is None: return 0
-            fab = self.q_mf.fab(1)
-            return fab.array
-        def fset(self, q):
-            meqn = q.shape[0]
-            if self.q_mf is None: self._init_q_mf(meqn)
-            fab = self.q_mf.fab(1)
-            fab[...] = q
-        return locals()
-    q = property(**q())
-
-    # def p():
-    #     r"""
-    #     Array containing values of derived quantities for output.
-    #     """
-    #     def fget(self):
-    #         if self._p_mf is None: return 0
-    #         shape = self.grid.ng
-    #         shape.insert(0,self.mp)
-    #         p=self.gpVec.getArray().reshape(shape, order = 'F')
-    #         return p
-    #     def fset(self,p):
-    #         mp = p.shape[0]
-    #         if self.gpVec is None: self.init_p_mf(mp)
-    #         self.gpVec.setArray(p.reshape([-1], order = 'F'))
-    #     return locals()
-    # p = property(**p())
-
-    # def F():
-    #     r"""
-    #     Array containing pointwise values (densities) of output functionals.
-    #     This is just used as temporary workspace before summing.
-    #     """
-    #     def fget(self):
-    #         if self._F_mf is None: return 0
-    #         shape = self.grid.ng
-    #         shape.insert(0,self.mF)
-    #         F=self.gFVec.getArray().reshape(shape, order = 'F')
-    #         return F
-    #     def fset(self,F):
-    #         mF = F.shape[0]
-    #         if self.gFVec is None: self.init_F_mf(mF)
-    #         self.gFVec.setArray(F.reshape([-1], order = 'F'))
-    #     return locals()
-    # F = property(**F())
-
-    def aux():
-        """
-        We never communicate aux values; every processor should set its own ghost cell
-        values for the aux array.  The global aux vector is used only for outputting
-        the aux values to file; everywhere else we use the local vector.
-        """
-        def fget(self):
-            if self.aux_mf is None: return None
-            shape = self.grid.ng
-            shape.insert(0,self.maux)
-            fab = self.aux_mf.fab(1)
-            return fab.array
-        def fset(self,aux):
-            # It would be nice to make this work also for parallel
-            # loading from a file.
-            if self.aux_mf is None:
-                maux = aux.shape[0]
-                self._init_aux_mf(maux)
-            fab = self.aux_mf.fab(1)
-            fab[...] = aux
-        return locals()
-    aux = property(**aux())
-
-    def ndim():
-        def fget(self):
-            return self.grid.ndim
-        return locals()
-    ndim = property(**ndim())
-
 
     def __init__(self, grid, meqn, maux=0):
-        """
 
-        Here we don't call super because q and aux must be properties in PetClaw
-        but should not be properties in PyClaw.
-
-        """
-
-        import boxclaw.grid
         if not isinstance(grid, boxclaw.grid.Grid):
             raise Exception("""A BoxClaw State object must be initialized with
                              a BoxClaw Grid object.""")
@@ -154,6 +21,9 @@ class State(pyclaw.state.State):
         self.q_mf = None
         self.p_mf = None
         self.F_mf = None
+
+        self.layout = None
+        self.box = None
 
         self.grid = grid
         self.aux_global = {}
@@ -165,53 +35,211 @@ class State(pyclaw.state.State):
         if maux > 0:
             self._init_aux_mf(maux)
 
-    def _init_aux_mf(self, maux, mbc=0):
-        """Initialize BoxLib multifab for the auxiliary array *aux*."""
 
-        self.aux_mf = self._create_multifab(maux, mbc)
+    def ndim():
+        def fget(self):
+            return self.grid.ndim
+        return locals()
+    ndim = property(**ndim())
 
-        # self.aux_mf = self._create_MF(maux,mbc)
-        # self.gauxVec = self.aux_mf.createGlobalVector()
-        # self.lauxVec = self.aux_mf.createLocalVector()
+
+    def meqn():
+        doc = r"""(int) - Number of unknowns (components of q)"""
+        def fget(self):
+            if self.q_mf is None:
+                raise Exception('state.meqn has not been set.')
+            else: return self.q_mf.nc
+        return locals()
+    meqn = property(**meqn())
+
+
+    def mp():
+        doc = r"""(int) - Number of derived quantities (components of p)"""
+        def fset(self,mp):
+            if self.p_mf is not None:
+                raise Exception('You cannot change state.mp after p is initialized.')
+            else:
+                self.p_mf = self._create_multifab(mp)
+        def fget(self):
+            if self.p_mf is None:
+                raise Exception('state.mp has not been set.')
+            else: return self.p_mf.nc
+        return locals()
+    mp = property(**mp())
+
+
+    def mF():
+        doc = r"""(int) - Number of derived quantities (components of F)"""
+        def fset(self,mF):
+            if self.F_mf is not None:
+                raise Exception('You cannot change state.mF after F is initialized.')
+            else:
+                self.F_mf = self._create_multifab(mF)
+        def fget(self):
+            if self.F_mf is None:
+                raise Exception('state.mF has not been set.')
+            else: return self.F_mf.nc
+        return locals()
+    mF = property(**mF())
+
+
+    def maux():
+        doc = r"""(int) - Number of auxiliary fields"""
+        def fget(self):
+            if self.aux_mf is None: return 0
+            else: return self.aux_mf.nc
+        return locals()
+    maux = property(**maux())
+
+
+    def q():
+        """Array to store solution (q) values.
+
+        Settting state.meqn automatically allocates space for q, as does
+        setting q itself.
+        """
+        def fget(self):
+            if self.q_mf is None: return 0
+            fab = self.q_mf.fab(self.box)
+            return fab.array
+        def fset(self, q):
+            meqn = q.shape[0]
+            if self.q_mf is None: self._init_q_mf(meqn)
+            fab = self.q_mf.fab(self.box)
+            fab[...] = q
+        return locals()
+    q = property(**q())
+
+
+    def p():
+        """Array containing values of derived quantities for output."""
+        def fget(self):
+            if self.p_mf is None: return 0
+            fab = self.p_mf.fab(self.box)
+            return fab.array
+        def fset(self,p):
+            if self.p_mf is None: self._init_p_mf()
+            fab = self.p_mf.fab(self.box)
+            fab[...] = p
+        return locals()
+    p = property(**p())
+
+
+    def F():
+        """Array containing pointwise values (densities) of output functionals.
+
+        This is just used as temporary workspace before summing.
+        """
+        def fget(self):
+            if self.F_mf is None: return 0
+            fab = self.F_mf.fab(self.box)
+            return fab.array
+        def fset(self,F):
+            mF = F.shape[0]
+            if self.F_mf is None: self._init_F_mf()
+            fab = self.p_F.fab(self.box)
+            fab[...] = F
+        return locals()
+    F = property(**F())
+
+
+    def aux():
+        """
+        We never communicate aux values; every processor should set its own ghost cell
+        values for the aux array.  The global aux vector is used only for outputting
+        the aux values to file; everywhere else we use the local vector.
+        """
+        def fget(self):
+            if self.aux_mf is None: return None
+            shape = self.grid.ng
+            shape.insert(0,self.maux)
+            fab = self.aux_mf.fab(self.box)
+            return fab.array
+        def fset(self,aux):
+            if self.aux_mf is None:
+                maux = aux.shape[0]
+                self._init_aux_mf(maux)
+            fab = self.aux_mf.fab(self.box)
+            fab[...] = aux
+        return locals()
+    aux = property(**aux())
+
 
     def _init_q_mf(self,meqn,mbc=0):
         """Initialize BoxLib multifab for the solution *q*."""
 
         self.q_mf = self._create_multifab(meqn, mbc)
 
-        # self.q_mf = self._create_MF(meqn,mbc)
-        # self.gqVec = self.q_mf.createGlobalVector()
-        # self.lqVec = self.q_mf.createLocalVector()
 
-        # #Now set the local indices for the Dimension objects:
-        # ranges = self.q_mf.getRanges()
-        # for i,nrange in enumerate(ranges):
-        #     dim = self.grid.dimensions[i]
-        #     dim.nstart = nrange[0]
-        #     dim.nend   = nrange[1]
-        #     dim.lowerg = dim.lower + dim.nstart*dim.d
+    def _init_p_mf(self):
+        raise NotImplemented
 
-    def _create_multifab(self, nc, mbc=0):
-        """Create a BoxLib multifab."""
 
-        from pyboxlib import layout, multifab
+    def _init_F_mf(self):
+        raise NotImplemented
 
+
+    def _init_aux_mf(self, maux, mbc=0):
+        """Initialize BoxLib multifab for the auxiliary array *aux*."""
+
+        self.aux_mf = self._create_multifab(maux, mbc)
+
+
+    def _create_layout(self):
+
+        # create boxes to divide domain amoungst processors
+        boxes = []
         if self.ndim == 1:
-            boxes = [ [(1,1,1), (self.grid.n[0],1,1)] ]
+            n = self.grid.n[0] / fboxlib.mpi_size()
+            for k in range(fboxlib.mpi_size()):
+                boxes.append( ((k*n+1,1,1), ((k+1)*n,1,1)) )
+        elif self.ndim == 2:
+            n = self.grid.n[1] / fboxlib.mpi_size()
+            for k in range(fboxlib.mpi_size()):
+                boxes.append( ((1,k*n+1,1), (1,(k+1)*n,1)) )
+        elif self.ndim == 3:
+            n = self.grid.n[2] / fboxlib.mpi_size()
+            for k in range(fboxlib.mpi_size()):
+                boxes.append( ((1,1,k*n+1), (1,1,(k+1)*n)) )
+        else:
+            raise Exception("Invalid number of dimensions.")
+
+        # create layout
+        la = layout()
+        la.create(boxes=boxes)
+        self.box = la.local_boxes[0]
+        self.layout = la
+
+        assert len(la.local_boxes) == 1
+
+        # set local indices of the Dimension objects
+        if self.ndim == 1:
+            n = self.grid.n[0] / fboxlib.mpi_size()
+            k = self.box-1
+
+            dim = self.grid.dimensions[0]
+            dim.nstart = k*n+1
+            dim.nend   = (k+1)*n+1
+
         elif self.ndim == 2:
             raise NotImplemented
         elif self.ndim == 3:
             raise NotImplemented
         else:
-            raise Exception("Invalid number of dimensions")
+            raise Exception("Invalid number of dimensions.")
 
-        la = layout()
-        la.create(boxes=boxes)
+
+    def _create_multifab(self, nc, mbc=0):
+        """Create a BoxLib multifab."""
+
+        if self.layout is None:
+            self._create_layout()
 
         mf = multifab()
-        mf.create(la, components=nc, ghost_cells=mbc, interleave=True)
+        mf.create(self.layout, components=nc, ghost_cells=mbc, interleave=True)
 
         return mf
+
 
     # def set_q_from_qbc(self,mbc,qbc):
     #     """
