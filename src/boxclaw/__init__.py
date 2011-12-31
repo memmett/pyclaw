@@ -5,6 +5,8 @@ import logging, logging.config
 
 from pyboxlib import fboxlib
 fboxlib.open()
+import atexit
+atexit.register(fboxlib.close)
 
 # Default logging configuration file
 _DEFAULT_LOG_CONFIG_PATH = os.path.join(os.path.dirname(__file__),'log.config')
@@ -40,3 +42,4 @@ __all__.extend(limiters.__all__)
 
 # import plot
 # __all__.append('plot')
+
