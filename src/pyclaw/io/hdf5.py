@@ -46,11 +46,6 @@ try:
 except:
     pass
 
-        # error_msg = ("Could not import h5py or PyTables, please install " +
-        #     "either h5py or PyTables.  See the doc_string for more " +
-        #     "information.")
-        # raise Exception(error_msg)
-
 if not use_h5py and not use_PyTables:
     logging.critical("Could not import h5py or PyTables!")
 
