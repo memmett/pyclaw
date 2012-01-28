@@ -28,7 +28,7 @@ def write_boxlib(solution, frame,
     pickle_filename = os.path.join(path, '%s.pkl' % file_prefix) + str(frame).zfill(4)
     boxlib_filename = os.path.join(path, '%s.bxl' % file_prefix) + str(frame).zfill(4)
 
-    if solution.maux > 0 and write_aux:
+    if solution.num_aux > 0 and write_aux:
         write_aux = True
         aux_filename = os.path.join(path, '%s_aux.bxl' % file_prefix)
     else:
@@ -44,16 +44,16 @@ def write_boxlib(solution, frame,
 
     rank = fboxlib.mpi_rank()
 
-    if rank == 0:
+    if rank==0:
         pickle_file = open(pickle_filename,'wb')
         if write_p:
-            pickle.dump({'t':solution.t,'meqn':solution.mp,'nstates':len(solution.states),
-                         'maux':solution.maux,'ndim':solution.ndim,'write_aux':write_aux,
-                         'aux_global' : solution.aux_global}, pickle_file)
+            pickle.dump({'t':solution.t,'num_eqn':solution.mp,'nstates':len(solution.states),
+                         'num_aux':solution.num_aux,'ndim':solution.ndim,'write_aux':write_aux,
+                         'problem_data' : solution.problem_data}, pickle_file)
         else:
-            pickle.dump({'t':solution.t,'meqn':solution.meqn,'nstates':len(solution.states),
-                         'maux':solution.maux,'ndim':solution.ndim,'write_aux':write_aux,
-                         'aux_global' : solution.aux_global}, pickle_file)
+            pickle.dump({'t':solution.t,'num_eqn':solution.num_eqn,'nstates':len(solution.states),
+                         'num_aux':solution.num_aux,'ndim':solution.ndim,'write_aux':write_aux,
+                         'problem_data' : solution.problem_data}, pickle_file)
 
     # write
     for state in solution.states:

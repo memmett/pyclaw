@@ -26,9 +26,9 @@ class State(pyclaw.state.State):
         self.box = None
 
         self.grid = grid
-        self.aux_global = {}
+        self.problem_data = {}
         self.t = 0.0
-        self.mcapa = -1
+        self.index_capa = -1
 
         self._init_q_mf(meqn)
 
