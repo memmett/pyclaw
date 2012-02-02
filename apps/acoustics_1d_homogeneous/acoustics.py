@@ -39,12 +39,12 @@ def acoustics(use_petsc=False,use_boxlib=False,kernel_language='Fortran',solver_
     solver.bc_upper[0] = pyclaw.BC.periodic
 
     #========================================================================
-    # Instantiate the grid and set the boundary conditions
+    # Instantiate the domain and set the boundary conditions
     #========================================================================
     x = pyclaw.Dimension('x',0.0,1.0,100)
-    grid = pyclaw.Grid(x)
+    domain = pyclaw.Domain(x)
     num_eqn = 2
-    state = pyclaw.State(grid,num_eqn)
+    state = pyclaw.State(domain,num_eqn)
 
     #========================================================================
     # Set problem-specific variables
@@ -59,7 +59,7 @@ def acoustics(use_petsc=False,use_boxlib=False,kernel_language='Fortran',solver_
     #========================================================================
     # Set the initial condition
     #========================================================================
-    xc=grid.x.center
+    xc=domain.grid.x.centers
     beta=100; gamma=0; x0=0.75
     state.q[0,:] = exp(-beta * (xc-x0)**2) * cos(gamma * (xc - x0))
     state.q[1,:] = 0.
@@ -68,7 +68,7 @@ def acoustics(use_petsc=False,use_boxlib=False,kernel_language='Fortran',solver_
     # Set up the controller object
     #========================================================================
     claw = pyclaw.Controller()
-    claw.solution = pyclaw.Solution(state)
+    claw.solution = pyclaw.Solution(state,domain)
     claw.solver = solver
     claw.outdir = outdir
     claw.tfinal = 1.0
