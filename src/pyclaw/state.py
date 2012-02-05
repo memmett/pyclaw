@@ -18,13 +18,13 @@ class State(object):
     num_eqn and num_aux (respectively) are set.
 
     :State Data:
-    
-        The arrays :attr:`q`, and :attr:`aux` have variable 
-        extents based on the patch dimensions and the values of 
-        :attr:`num_eqn` and :attr:`num_aux`.  Note that these are initialy set to 
+
+        The arrays :attr:`q`, and :attr:`aux` have variable
+        extents based on the patch dimensions and the values of
+        :attr:`num_eqn` and :attr:`num_aux`.  Note that these are initialy set to
         None and later set to appropriately sized empty numpy arrays when
         :attr:`num_eqn` and :attr:`num_aux` are set.
- 
+
     To instantiate a State, we first need a patch:
 
         >>> from clawpack import pyclaw
@@ -107,10 +107,10 @@ class State(object):
         self.F   = None
         r"""(ndarray(mF,...)) - Cell averages of output functional densities."""
         self.problem_data = {}
-        r"""(dict) - Dictionary of global values for this patch, 
+        r"""(dict) - Dictionary of global values for this patch,
             ``default = {}``"""
         self.t=0.
-        r"""(float) - Current time represented on this patch, 
+        r"""(float) - Current time represented on this patch,
             ``default = 0.0``"""
         self.index_capa = -1
 
@@ -131,17 +131,17 @@ class State(object):
     def is_valid(self):
         r"""
         Checks to see if this state is valid
-        
+
         The state is declared valid based on the following criteria:
             - :attr:`q` is not None
             - :attr:`num_eqn` > 0
-            
-        A debug logger message will be sent documenting exactly what was not 
+
+        A debug logger message will be sent documenting exactly what was not
         valid.
-            
+
         :Output:
          - (bool) - True if valid, false otherwise.
-        
+
         """
         import logging
         valid = True
@@ -150,7 +150,33 @@ class State(object):
             logger.debug('q array is not Fortran contiguous.')
             valid = False
         return valid
- 
+
+
+    def precompute_mapped_weno(self, weno_order):
+        r"""
+        Precomputes WENO related coefficients for mapped grids.
+
+        This should be called before the solver is run.
+        """
+        import geometry
+        import pyweno.nonuniform
+
+        # XXX: add check to is_valid?
+
+        # get weno order
+        k = (weno_order+1)/2
+
+        # pre-compute weno coeffs etc
+        edges = self.grid.p_edges[0]
+        c = pyweno.nonuniform.reconstruction_coefficients(k, [ -1, 1 ], edges)
+        v = pyweno.nonuniform.optimal_weights(k, [ -1, 1 ], edges)
+        b = pyweno.nonuniform.jiang_shu_smoothness_coefficients(k, edges)
+
+        self.weno_coeffs = c
+        self.weno_varpi  = v
+        self.weno_beta   = b
+
+
     def set_cparam(self,fortran_module):
         """
         Set the variables in fortran_module.cparam to the corresponding values in
@@ -162,15 +188,15 @@ class State(object):
         interdependency between solver and patch; perhaps problem_data should belong
         to solver instead of state.
 
-        This function also checks that the set of variables defined in cparam 
+        This function also checks that the set of variables defined in cparam
         all appear in problem_data.
         """
         if hasattr(fortran_module,'cparam'):
             if not set(dir(fortran_module.cparam)) <= set(self.problem_data.keys()):
-                raise Exception("""Some required value(s) in the cparam common 
-                                   block in the Riemann solver have not been 
+                raise Exception("""Some required value(s) in the cparam common
+                                   block in the Riemann solver have not been
                                    set in problem_data.""")
-            for global_var_name,global_var_value in self.problem_data.iteritems(): 
+            for global_var_name,global_var_value in self.problem_data.iteritems():
                 setattr(fortran_module.cparam,global_var_name,global_var_value)
 
     def set_num_ghost(self,num_ghost):
@@ -184,9 +210,9 @@ class State(object):
         """
         Set the value of q using the array qbc. for PetSolver, this
         involves setting qbc as the local vector array then perform
-        a local to global communication. 
+        a local to global communication.
         """
-        
+
         patch = self.patch
         if patch.num_dim == 1:
             self.q = qbc[:,num_ghost:-num_ghost]
@@ -220,7 +246,7 @@ class State(object):
         Fills in the interior of qbc (local vector) by copying q (global vector) to it.
         """
         num_dim = self.patch.num_dim
-        
+
         if num_dim == 1:
             qbc[:,num_ghost:-num_ghost] = self.q
         elif num_dim == 2:
@@ -253,22 +279,22 @@ class State(object):
     # ========== Copy functionality ==========================================
     def __copy__(self):
         return self.__class__(self)
-        
-        
+
+
     def __deepcopy__(self,memo={}):
         import copy
         result = self.__class__(copy.deepcopy(self.patch),self.num_eqn,self.num_aux)
         result.__init__(copy.deepcopy(self.patch),self.num_eqn,self.num_aux)
-        
+
         for attr in ('t'):
             setattr(result,attr,copy.deepcopy(getattr(self,attr)))
-        
+
         if self.q is not None:
             result.q = copy.deepcopy(self.q)
         if self.aux is not None:
             result.aux = copy.deepcopy(self.aux)
         result.problem_data = copy.deepcopy(self.problem_data)
-        
+
         return result
 
     def sum_F(self,i):

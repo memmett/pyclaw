@@ -1,7 +1,16 @@
 #!/usr/bin/env python
 # encoding: utf-8
-    
-def acoustics(use_petsc=False,kernel_language='Fortran',solver_type='classic',iplot=False,htmlplot=False,outdir='./_output',weno_order=5):
+
+import numpy as np
+
+def acoustics(use_petsc=False,
+              kernel_language='Fortran',
+              solver_type='classic',
+              weno_order=5,
+              mapped=False,
+              iplot=False,
+              htmlplot=False,
+              outdir='./_output'):
     """
     This example solves the 1-dimensional acoustics equations in a homogeneous
     medium.
@@ -44,10 +53,16 @@ def acoustics(use_petsc=False,kernel_language='Fortran',solver_type='classic',ip
     #========================================================================
     # Instantiate the domain and set the boundary conditions
     #========================================================================
-    x = pyclaw.Dimension('x',0.0,1.0,100)
+    x = pyclaw.Dimension('x',0.0,1.0,20)
     domain = pyclaw.Domain(x)
     num_eqn = 2
     state = pyclaw.State(domain,num_eqn)
+
+    if mapped:
+        state.grid.mapc2p = lambda p, x: 2.0 + 0.2*np.sin(x)
+        state.grid.compute_p_edges(recompute=True)
+        state.grid.compute_p_centers(recompute=True)
+        state.precompute_mapped_weno(solver.weno_order)
 
     #========================================================================
     # Set problem-specific variables
