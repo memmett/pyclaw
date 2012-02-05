@@ -1,7 +1,16 @@
 #!/usr/bin/env python
 # encoding: utf-8
-    
-def acoustics(use_petsc=False,kernel_language='Fortran',solver_type='classic',iplot=False,htmlplot=False,outdir='./_output',weno_order=5):
+
+import numpy as np
+
+def acoustics(use_petsc=False,
+              kernel_language='Fortran',
+              solver_type='classic',
+              weno_order=5,
+              mapped=False,
+              iplot=False,
+              htmlplot=False,
+              outdir='./_output'):
     """
     This example solves the 1-dimensional acoustics equations in a homogeneous
     medium.
@@ -29,9 +38,9 @@ def acoustics(use_petsc=False,kernel_language='Fortran',solver_type='classic',ip
     solver.kernel_language=kernel_language
     from riemann import rp_acoustics
     solver.num_waves=rp_acoustics.num_waves
-    if kernel_language=='Python': 
+    if kernel_language=='Python':
         solver.rp = rp_acoustics.rp_acoustics_1d
- 
+
     solver.limiters = pyclaw.limiters.tvd.MC
     solver.bc_lower[0] = pyclaw.BC.periodic
     solver.bc_upper[0] = pyclaw.BC.periodic
@@ -39,10 +48,16 @@ def acoustics(use_petsc=False,kernel_language='Fortran',solver_type='classic',ip
     #========================================================================
     # Instantiate the domain and set the boundary conditions
     #========================================================================
-    x = pyclaw.Dimension('x',0.0,1.0,100)
+    x = pyclaw.Dimension('x',0.0,1.0,20)
     domain = pyclaw.Domain(x)
     num_eqn = 2
     state = pyclaw.State(domain,num_eqn)
+
+    if mapped:
+        state.grid.mapc2p = lambda p, x: 2.0 + 0.2*np.sin(x)
+        state.grid.compute_p_edges(recompute=True)
+        state.grid.compute_p_centers(recompute=True)
+        state.precompute_mapped_weno(solver.weno_order)
 
     #========================================================================
     # Set problem-specific variables
@@ -61,7 +76,7 @@ def acoustics(use_petsc=False,kernel_language='Fortran',solver_type='classic',ip
     beta=100; gamma=0; x0=0.75
     state.q[0,:] = exp(-beta * (xc-x0)**2) * cos(gamma * (xc - x0))
     state.q[1,:] = 0.
-    
+
     #========================================================================
     # Set up the controller object
     #========================================================================
