@@ -20,7 +20,7 @@ except ImportError:
 def before_step(solver,solution):
     r"""
     Dummy routine called before each step
-    
+
     Replace this routine if you want to do something before each time step.
     """
     pass
@@ -29,16 +29,16 @@ class SharpClawSolver(Solver):
     r"""
     Superclass for all SharpClawND solvers.
 
-    Implements Runge-Kutta time stepping and the basic form of a 
+    Implements Runge-Kutta time stepping and the basic form of a
     semi-discrete step (the dq() function).  If another method-of-lines
     solver is implemented in the future, it should be based on this class,
     which then ought to be renamed to something like "MOLSolver".
 
     .. attribute:: before_step
-    
+
         Function called before each time step is taken.
         The required signature for this function is:
-        
+
         def before_step(solver,solution)
 
     .. attribute:: lim_type
@@ -80,11 +80,11 @@ class SharpClawSolver(Solver):
 
         Whether the auxiliary array is time dependent.
         ``Default = False``
-    
+
     .. attribute:: kernel_language
 
         Specifies whether to use wrapped Fortran routines ('Fortran')
-        or pure Python ('Python').  
+        or pure Python ('Python').
         ``Default = 'Fortran'``.
 
     .. attribute:: num_ghost
@@ -93,9 +93,9 @@ class SharpClawSolver(Solver):
         ``Default = 3``
 
     .. attribute:: fwave
-    
-        Whether to split the flux jump (rather than the jump in Q) into waves; 
-        requires that the Riemann solver performs the splitting.  
+
+        Whether to split the flux jump (rather than the jump in Q) into waves;
+        requires that the Riemann solver performs the splitting.
         ``Default = False``
 
     .. attribute:: cfl_desired
@@ -110,11 +110,11 @@ class SharpClawSolver(Solver):
 
     .. attribute:: dq_src
 
-        Whether a source term is present. If it is present the function that 
+        Whether a source term is present. If it is present the function that
         computes its contribution must be provided.
         ``Default = None``
     """
-    
+
     # ========================================================================
     #   Initialization routines
     # ========================================================================
@@ -139,10 +139,10 @@ class SharpClawSolver(Solver):
         self._mthlim = self.limiters
         self._method = None
         self._rk_stages = None
-        
+
         # Call general initialization function
         super(SharpClawSolver,self).__init__()
-        
+
     # ========== Time stepping routines ======================================
     def step(self,solution):
         """Evolve q over one time step.
@@ -210,8 +210,8 @@ class SharpClawSolver(Solver):
         if len(self._mthlim)==1: self._mthlim = self._mthlim * self.num_waves
         if len(self._mthlim)!=self.num_waves:
             raise Exception('Length of solver.limiters is not equal to 1 or to solver.num_waves')
- 
-       
+
+
     def dq(self,state):
         """
         Evaluate dq/dt * (delta t)
@@ -219,7 +219,7 @@ class SharpClawSolver(Solver):
 
         deltaq = self.dq_hyperbolic(state)
 
-        # Check here if we violated the CFL condition, if we did, return 
+        # Check here if we violated the CFL condition, if we did, return
         # immediately to evolve_to_time and let it deal with picking a new
         # dt
         if self.cfl.get_cached_max() > self.cfl_max:
@@ -233,7 +233,7 @@ class SharpClawSolver(Solver):
     def dq_hyperbolic(self,state):
         raise NotImplementedError('You must subclass SharpClawSolver.')
 
-         
+
     def dqdt(self,state):
         """
         Evaluate dq/dt.  This routine is used for implicit time stepping.
@@ -289,7 +289,7 @@ class SharpClawSolver(Solver):
         if self.time_integrator   == 'Euler':  nregisters=1
         elif self.time_integrator == 'SSP33':  nregisters=2
         elif self.time_integrator == 'SSP104': nregisters=3
- 
+
         state = solution.states[0]
         # use the same class constructor as the solution for the Runge Kutta stages
         State = type(state)
@@ -311,14 +311,14 @@ class SharpClawSolver1D(SharpClawSolver):
 # ========================================================================
     """
     SharpClaw solver for one-dimensional problems.
-    
+
     Used to solve 1D hyperbolic systems using the SharpClaw algorithms,
     which are based on WENO reconstruction and Runge-Kutta time stepping.
     """
     def __init__(self):
         r"""
         See :class:`SharpClawSolver1D` for more info.
-        """   
+        """
         self.num_dim = 1
         super(SharpClawSolver1D,self).__init__()
 
@@ -337,7 +337,7 @@ class SharpClawSolver1D(SharpClawSolver):
 
         self.allocate_rk_stages(solution)
         self.set_mthlim()
- 
+
         state = solution.states[0]
 
         if self.kernel_language=='Fortran':
@@ -375,11 +375,11 @@ class SharpClawSolver1D(SharpClawSolver):
          0     1     2     3     4     mx+num_ghost-2     mx+num_ghost      mx+num_ghost+2
                      |                        mx+num_ghost-1 |  mx+num_ghost+1
          |     |     |     |     |   ...   |     |     |     |     |
-            0     1  |  2     3            mx+num_ghost-2    |mx+num_ghost       
+            0     1  |  2     3            mx+num_ghost-2    |mx+num_ghost
                                                   mx+num_ghost-1   mx+num_ghost+1
 
         The top indices represent the values that are located on the grid
-        cell boundaries such as waves, s and other Riemann problem values, 
+        cell boundaries such as waves, s and other Riemann problem values,
         the bottom for the cell centered values such as q.  In particular
         the ith grid cell boundary has the following related information::
 
@@ -392,11 +392,11 @@ class SharpClawSolver1D(SharpClawSolver):
         values are in the cell.
 
         """
-    
+
         import numpy as np
 
         self.apply_q_bcs(state)
-        q = self.qbc 
+        q = self.qbc
 
         grid = state.grid
         mx = grid.num_cells[0]
@@ -405,7 +405,12 @@ class SharpClawSolver1D(SharpClawSolver):
 
         if self.kernel_language=='Fortran':
             from sharpclaw1 import flux1
-            dq,cfl=flux1(q,self.auxbc,self.dt,state.t,ixy,mx,self.num_ghost,mx)
+            if not getattr(state, 'weno_mapped', False):
+                dq,cfl=flux1(q,self.auxbc,self.dt,state.t,ixy,mx,self.num_ghost,mx,
+                             False, None, None, None)
+            else:
+                dq,cfl=flux1(q,self.auxbc,self.dt,state.t,ixy,mx,self.num_ghost,mx,
+                             True, state.weno_beta, state.weno_varpi, state.weno_coeffs)
 
         elif self.kernel_language=='Python':
 
@@ -417,7 +422,7 @@ class SharpClawSolver1D(SharpClawSolver):
                 dtdx = self.dt / (grid.delta[0] * state.aux[state.index_capa,:])
             else:
                 dtdx += self.dt/grid.delta[0]
- 
+
             aux=self.auxbc
             if aux.shape[0]>0:
                 aux_l=aux[:,:-1]
@@ -473,22 +478,22 @@ class SharpClawSolver1D(SharpClawSolver):
 
         self.cfl.update_global_max(cfl)
         return dq[:,self.num_ghost:-self.num_ghost]
-    
+
 
 # ========================================================================
 class SharpClawSolver2D(SharpClawSolver):
 # ========================================================================
     """SharpClaw evolution routine in 2D
-    
-    This class represents the 2D SharpClaw solver.  Note that there are 
+
+    This class represents the 2D SharpClaw solver.  Note that there are
     routines here for interfacing with the fortran time stepping routines only.
     """
     def __init__(self):
         r"""
         Create 2D SharpClaw solver
-        
+
         See :class:`SharpClawSolver2D` for more info.
-        """   
+        """
         self.num_dim = 2
 
         super(SharpClawSolver2D,self).__init__()
@@ -510,7 +515,7 @@ class SharpClawSolver2D(SharpClawSolver):
         self.set_mthlim()
 
         state = solution.states[0]
- 
+
         if self.kernel_language=='Fortran':
             from sharpclaw2 import clawparams, workspace, reconstruct
             import sharpclaw2
@@ -544,11 +549,11 @@ class SharpClawSolver2D(SharpClawSolver):
          0     1     2     3     4     mx+num_ghost-2     mx+num_ghost      mx+num_ghost+2
                      |                        mx+num_ghost-1 |  mx+num_ghost+1
          |     |     |     |     |   ...   |     |     |     |     |
-            0     1  |  2     3            mx+num_ghost-2    |mx+num_ghost       
+            0     1  |  2     3            mx+num_ghost-2    |mx+num_ghost
                                                   mx+num_ghost-1   mx+num_ghost+1
 
         The top indices represent the values that are located on the grid
-        cell boundaries such as waves, s and other Riemann problem values, 
+        cell boundaries such as waves, s and other Riemann problem values,
         the bottom for the cell centered values such as q.  In particular
         the ith grid cell boundary has the following related information::
 
@@ -562,7 +567,7 @@ class SharpClawSolver2D(SharpClawSolver):
 
         """
         self.apply_q_bcs(state)
-        q = self.qbc 
+        q = self.qbc
 
         grid = state.grid
 

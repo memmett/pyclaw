@@ -1,5 +1,5 @@
 ! ===================================================================
-subroutine flux1(q1d,dq1d,aux,dt,cfl,t,ixy,num_aux,num_eqn,mx,num_ghost,maxnx)
+subroutine flux1(q1d,dq1d,aux,dt,cfl,t,ixy,num_aux,num_eqn,mx,num_ghost,maxnx,mapped,beta,varpi,coeffs)
 ! ===================================================================
 !
 !     # Evaluate (delta t) * dq(t)/dt
@@ -41,20 +41,19 @@ subroutine flux1(q1d,dq1d,aux,dt,cfl,t,ixy,num_aux,num_eqn,mx,num_ghost,maxnx)
     USE workspace
     USE ClawParams
 
-    implicit double precision (a-h,o-z)
+    implicit none
 
-    integer :: num_aux,num_eqn,num_ghost,maxnx,mx
-    double precision :: q1d(num_eqn,1-num_ghost:mx+num_ghost)
-    double precision :: dq1d(num_eqn,1-num_ghost:maxnx+num_ghost)
-    dimension aux(num_aux,1-num_ghost:mx+num_ghost)
-    double precision :: auxl(num_aux,1-num_ghost:mx+num_ghost), auxr(num_aux,1-num_ghost:mx+num_ghost)
-    double precision, intent(out) :: cfl
-    integer, intent(in) :: ixy
-    integer t
+    integer, intent(in) :: num_aux,num_eqn,num_ghost,maxnx,mx,ixy
+    double precision, intent(in)     :: t, dt
+    double precision, intent(in)     ::  q1d(num_eqn,1-num_ghost:mx+num_ghost)
+    double precision, intent(out)    :: dq1d(num_eqn,1-num_ghost:mx+num_ghost)
+    double precision, intent(in)     :: aux(num_aux,1-num_ghost:mx+num_ghost)
+    double precision, intent(out)    :: cfl
+    double precision, intent(in)     :: beta(:,:,:,:), varpi(:,:,:), coeffs(:,:,:,:)
+    logical, intent(in)              :: mapped
 
-!f2py intent(in,out) dq1d  
-!f2py intent(out) cfl  
-!f2py optional dq1d
+    double precision, dimension(num_aux,1-num_ghost:mx+num_ghost) :: auxl, auxr
+    integer :: i, m, mw
 
     if (index_capa.gt.0) then
         dtdx = dt / (dx(ixy)*aux(index_capa,:))
@@ -96,7 +95,11 @@ subroutine flux1(q1d,dq1d,aux,dt,cfl,t,ixy,num_aux,num_eqn,mx,num_ghost,maxnx)
         select case (char_decomp)
             case (0)
                 ! no characteristic decomposition
-                call weno_comp(q1d,ql,qr,num_eqn,maxnx,num_ghost)
+                if (mapped) then
+                    call weno_comp_mapped(q1d,ql,qr,num_eqn,maxnx,num_ghost,beta,varpi,coeffs)
+                else
+                    call weno_comp(q1d,ql,qr,num_eqn,maxnx,num_ghost)
+                end if
             case (1)
                 ! wave-based reconstruction
                 call rp1(maxnx,num_eqn,num_waves,num_ghost,mx,&
@@ -124,7 +127,7 @@ subroutine flux1(q1d,dq1d,aux,dt,cfl,t,ixy,num_aux,num_eqn,mx,num_ghost,maxnx)
       end select
 
 
-    ! solve Riemann problem at each interface 
+    ! solve Riemann problem at each interface
     ! -----------------------------------------
     call rp1(maxnx,num_eqn,num_waves,num_ghost,mx,ql,qr,aux,aux, &
               wave,s,amdq,apdq,num_aux)
@@ -161,12 +164,12 @@ subroutine flux1(q1d,dq1d,aux,dt,cfl,t,ixy,num_aux,num_eqn,mx,num_ghost,maxnx)
 
     else
         ! Or we can just swap things around and use the usual Riemann solver
-        ! This may be more convenient, but is less efficient. 
-        ! For the moment the swapping is done working with the element of the 
-        ! vectors qr, ql, auxl, auxr. 
-        ! 
+        ! This may be more convenient, but is less efficient.
+        ! For the moment the swapping is done working with the element of the
+        ! vectors qr, ql, auxl, auxr.
+        !
         ! TODO: Working with pointers!!!
-        
+
         do i = 1-num_ghost+1,mx+num_ghost
             do m = 1, num_eqn
                 qr(m,i-1) = ql(m,i)
@@ -182,7 +185,7 @@ subroutine flux1(q1d,dq1d,aux,dt,cfl,t,ixy,num_aux,num_eqn,mx,num_ghost,maxnx)
                 enddo
             enddo
         endif
-        
+
         call rp1(maxnx,num_eqn,num_waves,num_ghost,mx,ql,qr, &
                  auxl,auxr,wave,s,amdq2,apdq2,num_aux)
 

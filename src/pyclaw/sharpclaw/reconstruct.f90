@@ -97,23 +97,59 @@ contains
         case (5)
            call weno5(q,ql,qr,num_eqn,maxnx,num_ghost)
         case (7)
-           call weno7(q,ql,qr,num_eqn,maxnx,num_ghost)           
+           call weno7(q,ql,qr,num_eqn,maxnx,num_ghost)
         case (9)
-           call weno9(q,ql,qr,num_eqn,maxnx,num_ghost)           
+           call weno9(q,ql,qr,num_eqn,maxnx,num_ghost)
         case (11)
-           call weno11(q,ql,qr,num_eqn,maxnx,num_ghost)           
+           call weno11(q,ql,qr,num_eqn,maxnx,num_ghost)
         case (13)
-           call weno13(q,ql,qr,num_eqn,maxnx,num_ghost)           
+           call weno13(q,ql,qr,num_eqn,maxnx,num_ghost)
         case (15)
-           call weno15(q,ql,qr,num_eqn,maxnx,num_ghost)           
+           call weno15(q,ql,qr,num_eqn,maxnx,num_ghost)
         case (17)
-           call weno17(q,ql,qr,num_eqn,maxnx,num_ghost)           
+           call weno17(q,ql,qr,num_eqn,maxnx,num_ghost)
         case default
            print *, 'ERROR: weno_order must be an odd number between 5 and 17 (inclusive).'
            stop
         end select
 
     end subroutine weno_comp
+
+
+    ! ===================================================================
+    subroutine weno_comp_mapped(q,ql,qr,num_eqn,maxnx,num_ghost,beta,varpi,coeffs)
+    ! ===================================================================
+
+        use weno
+        use clawparams, only: weno_order
+        implicit none
+
+        integer,          intent(in) :: num_eqn, maxnx, num_ghost
+        double precision, intent(in) :: q(num_eqn,maxnx+2*num_ghost)
+        double precision, intent(out) :: ql(num_eqn,maxnx+2*num_ghost),qr(num_eqn,maxnx+2*num_ghost)
+        double precision, intent(in) :: beta(:,:,:,:), varpi(:,:,:), coeffs(:,:,:,:)
+
+        select case(weno_order)
+        case (5)
+           call weno5(q,ql,qr,num_eqn,maxnx,num_ghost)
+        case (7)
+           call weno7(q,ql,qr,num_eqn,maxnx,num_ghost)
+        case (9)
+           call weno9(q,ql,qr,num_eqn,maxnx,num_ghost)
+        case (11)
+           call weno11(q,ql,qr,num_eqn,maxnx,num_ghost)
+        case (13)
+           call weno13(q,ql,qr,num_eqn,maxnx,num_ghost)
+        case (15)
+           call weno15(q,ql,qr,num_eqn,maxnx,num_ghost)
+        case (17)
+           call weno17(q,ql,qr,num_eqn,maxnx,num_ghost)
+        case default
+           print *, 'ERROR: weno_order must be an odd number between 5 and 17 (inclusive).'
+           stop
+        end select
+
+    end subroutine weno_comp_mapped
 
 
     ! ===================================================================
@@ -129,7 +165,7 @@ contains
 
         mx2  = size(q,2); num_eqn = size(q,1)
 
-        !loop over all equations (all components).  
+        !loop over all equations (all components).
         !the reconstruction is performed component-wise;
         !no characteristic decomposition is used here
 
@@ -149,17 +185,17 @@ contains
 
                 im=(-1)**(m1+1)
                 ione=im; inone=-im; intwo=-2*im
-  
+
                 do i=num_ghost,mx2-num_ghost+1
-  
+
                     t1=im*(dq1m(i+intwo)-dq1m(i+inone))
                     t2=im*(dq1m(i+inone)-dq1m(i      ))
                     t3=im*(dq1m(i      )-dq1m(i+ione ))
-  
+
                     tt1=13.*t1**2+3.*(   dq1m(i+intwo)-3.*dq1m(i+inone))**2
                     tt2=13.*t2**2+3.*(   dq1m(i+inone)+   dq1m(i      ))**2
                     tt3=13.*t3**2+3.*(3.*dq1m(i      )-   dq1m(i+ione ))**2
-       
+
                     tt1=(epweno+tt1)**2
                     tt2=(epweno+tt2)**2
                     tt3=(epweno+tt3)**2
@@ -169,7 +205,7 @@ contains
                     t0 =1./(s1+s2+s3)
                     s1 =s1*t0
                     s3 =s3*t0
-  
+
                     uu(m1,i) = (s1*(t2-t1)+(0.5*s3-0.25)*(t3-t2))/3. &
                              +(-q(m,i-2)+7.*(q(m,i-1)+q(m,i))-q(m,i+1))/12.
 
@@ -203,7 +239,7 @@ contains
 
         mx2  = size(q,2); num_eqn = size(q,1)
 
-        ! loop over all equations (all components).  
+        ! loop over all equations (all components).
         ! the reconstruction is performed using characteristic decomposition
 
         forall(m=1:num_eqn,i=2:mx2)
@@ -223,11 +259,11 @@ contains
             ! Project the difference of the cell averages to the
             ! 'm'th characteristic field
 
-        
+
             do m2 = -2,2
                do  i = num_ghost+1,mx2-2
                   hh(m2,i) = 0.d0
-                  do m=1,num_eqn 
+                  do m=1,num_eqn
                     hh(m2,i) = hh(m2,i)+ evl(ip,m,i)*dq(m,i+m2)
                   enddo
                enddo
@@ -245,13 +281,13 @@ contains
                 ione=im
                 inone=-im
                 intwo=-2*im
-  
+
                 do i=num_ghost,mx2-num_ghost+1
-      
+
                     t1=im*(hh(intwo,i)-hh(inone,i))
                     t2=im*(hh(inone,i)-hh(0,i    ))
                     t3=im*(hh(0,i    )-hh(ione,i ))
-      
+
                     tt1=13.*t1**2+3.*(   hh(intwo,i)-3.*hh(inone,i))**2
                     tt2=13.*t2**2+3.*(   hh(inone,i)+   hh(0,i    ))**2
                     tt3=13.*t3**2+3.*(3.*hh(0,i    )-   hh(ione,i ))**2
@@ -265,7 +301,7 @@ contains
                     t0 =1./(s1+s2+s3)
                     s1 =s1*t0
                     s3 =s3*t0
-      
+
                     uu(m1,i) = ( s1*(t2-t1) + (0.5*s3-0.25)*(t3-t2) ) /3.
 
                 end do !end loop over interfaces
@@ -328,7 +364,7 @@ contains
             do m1 = -2,2
                 do  i = num_ghost+1,mx2-2
                     hh(m1,i) = 0.d0
-                    do m=1,num_eqn 
+                    do m=1,num_eqn
                         hh(m1,i) = hh(m1,i)+evl(mw,m,i)* &
                                     gg(i+m1,mw)*evr(i+m1,m,mw)
                     enddo
@@ -342,17 +378,17 @@ contains
                 ! m1=2: construct qr
                 im=(-1)**(m1+1)
                 ione=im; inone=-im; intwo=-2*im
-  
+
                 do i=num_ghost,mx2-num_ghost+1
-  
+
                     t1=im*(hh(intwo,i)-hh(inone,i))
                     t2=im*(hh(inone,i)-hh(0,i    ))
                     t3=im*(hh(0,i    )-hh(ione,i ))
-  
+
                     tt1=13.*t1**2+3.*(   hh(intwo,i)-3.*hh(inone,i))**2
                     tt2=13.*t2**2+3.*(   hh(inone,i)+   hh(0,i    ))**2
                     tt3=13.*t3**2+3.*(3.*hh(0,i    )-   hh(ione,i ))**2
-       
+
                     tt1=(epweno+tt1)**2
                     tt2=(epweno+tt2)**2
                     tt3=(epweno+tt3)**2
@@ -362,7 +398,7 @@ contains
                     t0 =1./(s1+s2+s3)
                     s1 =s1*t0
                     s3 =s3*t0
-  
+
                     u(mw,m1,i) = ( s1*(t2-t1) + (0.5*s3-0.25)*(t3-t2) ) /3.
 
                 enddo
@@ -376,7 +412,7 @@ contains
                 do i = num_ghost,mx2-num_ghost+1
                     uh(m,m1,i) =( -q(m,i-2) + 7*( q(m,i-1)+q(m,i) ) &
                                          - q(m,i+1) )/12.
-                    do mw=1,num_eqn 
+                    do mw=1,num_eqn
                         uh(m,m1,i) = uh(m,m1,i) + evr(m,mw,i)*u(mw,m1,i)
                     enddo
                 enddo
@@ -423,7 +459,7 @@ contains
                     ! m1=2: construct q^+_{i-1/2}
                     im=(-1)**(m1+1)
                     ione=im; inone=-im; intwo=-2*im
-  
+
                     wnorm2 = wave(1,mw,i      )*wave(1,mw,i)
                     theta1 = wave(1,mw,i+intwo)*wave(1,mw,i)
                     theta2 = wave(1,mw,i+inone)*wave(1,mw,i)
@@ -438,11 +474,11 @@ contains
                     t1=im*(theta1-theta2)
                     t2=im*(theta2-wnorm2)
                     t3=im*(wnorm2-theta3)
-  
+
                     tt1=13.*t1**2+3.*(theta1   -3.*theta2)**2
                     tt2=13.*t2**2+3.*(theta2   +   wnorm2)**2
                     tt3=13.*t3**2+3.*(3.*wnorm2-   theta3)**2
-       
+
                     tt1=(epweno+tt1)**2
                     tt2=(epweno+tt2)**2
                     tt3=(epweno+tt3)**2
@@ -452,7 +488,7 @@ contains
                     t0 =1./(s1+s2+s3)
                     s1 =s1*t0
                     s3 =s3*t0
-  
+
                     if(wnorm2.gt.1.e-14) then
                         u(m1) = ( s1*(t2-t1) + (0.5*s3-0.25)*(t3-t2) ) /3.
                         wnorm2=1.d0/wnorm2
@@ -514,7 +550,7 @@ contains
 
             im=(-1)**(m1+1)
             ione=im; inone=-im; intwo=-2*im
-  
+
             ! compute projections of waves in each family
             ! onto the corresponding wave at the current interface
             wnorm2 = fwave(1,mw,i      )*fwave(1,mw,i)
@@ -531,11 +567,11 @@ contains
              t1=im*(theta1-theta2)
              t2=im*(theta2-wnorm2)
              t3=im*(wnorm2-theta3)
-  
+
              tt1=13.*t1**2+3.*(theta1   -3.*theta2)**2
              tt2=13.*t2**2+3.*(theta2   +   wnorm2)**2
              tt3=13.*t3**2+3.*(3.*wnorm2-   theta3)**2
-       
+
              tt1=(epweno+tt1)**2
              tt2=(epweno+tt2)**2
              tt3=(epweno+tt3)**2
@@ -545,7 +581,7 @@ contains
              t0 =1./(s1+s2+s3)
              s1 =s1*t0
              s3 =s3*t0
-  
+
            if(wnorm2.gt.1.e-14) then
              u(mw,m1) = ( (s1*(t2-t1)+(0.5*s3-0.25)*(t3-t2))/3. &
                        + im*(theta2+6.d0*wnorm2-theta3)/12.d0)
@@ -577,9 +613,9 @@ contains
         integer, parameter :: num_ghost=2
         integer :: num_eqn, mx2
 
-        mx2  = size(q,2); num_eqn = size(q,1); 
+        mx2  = size(q,2); num_eqn = size(q,1);
 
-        ! loop over all equations (all components).  
+        ! loop over all equations (all components).
         ! the reconstruction is performed component-wise
 
         do m=1,num_eqn
@@ -642,9 +678,9 @@ contains
         integer, parameter :: num_ghost=2
         integer :: num_eqn, mx2
 
-        mx2  = size(q,2); num_eqn = size(q,1); 
+        mx2  = size(q,2); num_eqn = size(q,1);
 
-        ! loop over all equations (all components).  
+        ! loop over all equations (all components).
         ! the reconstruction is performed using characteristic decomposition
 
         ! compute and store the differences of the cell averages
@@ -680,7 +716,7 @@ contains
                     else
                         r=0.d0
                     endif
-               
+
                     select case(mthlim(m))
                     case(1)
                         ! minmod
@@ -704,7 +740,7 @@ contains
                         amax = dmax1(-alpha*r,0.d0,dmin1(beta*r,pp,xgamma))
                         slimitr = dmax1(0.d0, dmin1(pp,amax))
                     end select
-    
+
                      u(m,m1,i) = im*0.5d0*slimitr*hh(m1-2,i)
 
                 enddo
@@ -716,7 +752,7 @@ contains
             do i = num_ghost+1,mx2-1
                 qr(m,i-1)=q(m,i-1)
                 ql(m,i  )=q(m,i  )
-                do mm=1,num_eqn 
+                do mm=1,num_eqn
                     qr(m,i-1) = qr(m,i-1) + evr(m,mm,i)*u(mm,1,i)
                     ql(m,i  ) = ql(m,i  ) + evr(m,mm,i)*u(mm,2,i)
                 enddo
@@ -746,7 +782,7 @@ contains
             ql(m,i  ) = q(m,i  )
         end forall
 
-        ! loop over all equations (all components).  
+        ! loop over all equations (all components).
         ! the reconstruction is performed using characteristic decomposition
 
         do mw=1,num_waves
@@ -761,7 +797,7 @@ contains
                 enddo
                 if (i.eq.0) cycle
                 if (wnorm2.eq.0.d0) cycle
-                
+
                 if (s(mw,i).gt.0.d0) then
                     r = dotl / wnorm2
                 else
