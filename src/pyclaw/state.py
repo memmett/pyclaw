@@ -175,6 +175,7 @@ class State(object):
         self.weno_coeffs = c
         self.weno_varpi  = v
         self.weno_beta   = b
+        self.weno_mapped = True
 
 
     def set_cparam(self,fortran_module):
