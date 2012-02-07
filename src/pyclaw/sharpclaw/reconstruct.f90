@@ -131,19 +131,19 @@ contains
 
         select case(weno_order)
         case (5)
-           call weno5(q,ql,qr,num_eqn,maxnx,num_ghost)
+           call weno5_mapped(q,ql,qr,num_eqn,maxnx,num_ghost,beta,varpi,coeffs)
         case (7)
-           call weno7(q,ql,qr,num_eqn,maxnx,num_ghost)
+           call weno7_mapped(q,ql,qr,num_eqn,maxnx,num_ghost,beta,varpi,coeffs)
         case (9)
-           call weno9(q,ql,qr,num_eqn,maxnx,num_ghost)
+           call weno9_mapped(q,ql,qr,num_eqn,maxnx,num_ghost,beta,varpi,coeffs)
         case (11)
-           call weno11(q,ql,qr,num_eqn,maxnx,num_ghost)
+           call weno11_mapped(q,ql,qr,num_eqn,maxnx,num_ghost,beta,varpi,coeffs)
         case (13)
-           call weno13(q,ql,qr,num_eqn,maxnx,num_ghost)
+           call weno13_mapped(q,ql,qr,num_eqn,maxnx,num_ghost,beta,varpi,coeffs)
         case (15)
-           call weno15(q,ql,qr,num_eqn,maxnx,num_ghost)
+           call weno15_mapped(q,ql,qr,num_eqn,maxnx,num_ghost,beta,varpi,coeffs)
         case (17)
-           call weno17(q,ql,qr,num_eqn,maxnx,num_ghost)
+           call weno17_mapped(q,ql,qr,num_eqn,maxnx,num_ghost,beta,varpi,coeffs)
         case default
            print *, 'ERROR: weno_order must be an odd number between 5 and 17 (inclusive).'
            stop
