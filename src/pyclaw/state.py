@@ -170,15 +170,20 @@ class State(object):
         nx = self.grid.num_cells[0]
         dxc = self.grid.delta[0]
         xc1d = self.grid.lower[0]+dxc*(np.arange(nx+2*k+1)-k)
-        edges = np.array(map(lambda x: self.grid.mapc2p(self.grid, x), xc1d))
+        # edges = np.array(map(lambda x: self.grid.mapc2p(self.grid, x), xc1d))
+        edges = np.array(self.grid.mapc2p(self.grid, xc1d))
         c = pyweno.nonuniform.reconstruction_coefficients(k, [ -1, 1 ], edges)
         v = pyweno.nonuniform.optimal_weights(k, [ -1, 1 ], edges)
         b = pyweno.nonuniform.jiang_shu_smoothness_coefficients(k, edges)
 
-        self.weno_coeffs = c
-        self.weno_varpi  = v
-        self.weno_beta   = b
+        self.weno_coeffs = np.asfortranarray(c)
+        self.weno_varpi  = np.asfortranarray(v)
+        self.weno_beta   = np.asfortranarray(b)
         self.weno_mapped = True
+
+        print c
+        print v
+        print b
 
 
     def set_cparam(self,fortran_module):
