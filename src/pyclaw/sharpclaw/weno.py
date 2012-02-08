@@ -38,7 +38,7 @@ import numpy as np
 
 codegen = pyweno.functions.FunctionGenerator('fortran')
 
-K = range(3, 10)
+K = range(3, 6)
 
 if os.path.exists('cache.pkl'):
   with open('cache.pkl', 'r') as f:
