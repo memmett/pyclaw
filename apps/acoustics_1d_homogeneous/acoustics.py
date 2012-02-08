@@ -49,20 +49,31 @@ def acoustics(use_petsc=False,
 
     solver.bc_lower[0] = pyclaw.BC.periodic
     solver.bc_upper[0] = pyclaw.BC.periodic
+    solver.aux_bc_lower[0] = pyclaw.BC.periodic
+    solver.aux_bc_upper[0] = pyclaw.BC.periodic
 
     #========================================================================
     # Instantiate the domain and set the boundary conditions
     #========================================================================
-    x = pyclaw.Dimension('x',0.0,1.0,20)
+    nx = 100
+    x  = pyclaw.Dimension('x', 0.0, 1.0, nx)
     domain = pyclaw.Domain(x)
     num_eqn = 2
     state = pyclaw.State(domain,num_eqn)
 
     if mapped:
-        state.grid.mapc2p = lambda p, x: 2.0 + 0.2*np.sin(x)
+        num_ghost = (weno_order+1)/2
+        state.grid.mapc2p = lambda p, x: x + 0.002*np.sin(2*np.pi*x)
         state.grid.compute_p_edges(recompute=True)
         state.grid.compute_p_centers(recompute=True)
+        print 'precomputing weno coeffs...'
         state.precompute_mapped_weno(solver.weno_order)
+        print 'precomputing weno coeffs... done.'
+        area = state.grid.p_edges[0][1:] - state.grid.p_edges[0][:-1]
+        dx   = 1.0/nx
+        state.aux = np.zeros((1,nx))
+        state.aux[0,:] = area/dx
+        state.index_capa = 0
 
     #========================================================================
     # Set problem-specific variables
