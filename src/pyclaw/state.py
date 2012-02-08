@@ -167,7 +167,10 @@ class State(object):
         k = (weno_order+1)/2
 
         # pre-compute weno coeffs etc
-        edges = self.grid.p_edges[0]
+        nx = self.grid.num_cells[0]
+        dxc = self.grid.delta[0]
+        xc1d = self.grid.lower[0]+dxc*(np.arange(nx+2*k+1)-k)
+        edges = np.array(map(lambda x: self.grid.mapc2p(self.grid, x), xc1d))
         c = pyweno.nonuniform.reconstruction_coefficients(k, [ -1, 1 ], edges)
         v = pyweno.nonuniform.optimal_weights(k, [ -1, 1 ], edges)
         b = pyweno.nonuniform.jiang_shu_smoothness_coefficients(k, edges)
