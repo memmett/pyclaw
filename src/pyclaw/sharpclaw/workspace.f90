@@ -4,7 +4,10 @@ module workspace_module
 
   type :: workspace
      
-     integer(c_int) :: num_dim, num_waves, index_capa
+     logical :: work_alloc = .false.
+
+     integer(c_int) :: maxnx, num_ghost
+     integer(c_int) :: num_eqn, num_dim, num_waves, index_capa
      integer(c_int) :: char_decomp, lim_type, multid_recon, weno_order
      logical :: fwave, tfluct_solver
 
@@ -16,25 +19,35 @@ module workspace_module
      real(c_double), pointer :: xlower(:), xupper(:), dx(:)
      integer(c_int), pointer :: mthlim(:)
 
-     logical :: work_alloc = .false.
-     
+     ! reconstruction
+     real(c_double), pointer :: dq1m(:)
+     real(c_double), pointer :: uu(:,:), dq(:,:)
+     real(c_double), pointer :: uh(:,:,:), gg(:,:), hh(:,:), u(:,:,:)
+     real(c_double) :: epweno = 1.e-36
+
   end type workspace
 
 contains
   
-  subroutine alloc_workspace(cptr,maxnx,num_ghost,num_dim,num_eqn,num_waves,char_decomp) &
+  subroutine alloc_workspace(cptr,maxnx,num_ghost,num_dim,num_eqn,num_waves,char_decomp,lim_type) &
        bind(c, name='alloc_workspace')
 
     type(c_ptr), intent(out) :: cptr
-    integer(c_int), intent(in), value :: maxnx,num_ghost,num_dim,num_eqn,num_waves,char_decomp
+    integer(c_int), intent(in), value :: maxnx, num_ghost 
+    integer(c_int), intent(in), value :: num_dim, num_eqn, num_waves
+    integer(c_int), intent(in), value :: char_decomp, lim_type
     type(workspace), pointer :: wkspace
 
     allocate(wkspace)
     cptr = c_loc(wkspace)
 
-    wkspace%char_decomp = char_decomp
+    wkspace%maxnx = maxnx
+    wkspace%num_ghost = num_ghost
     wkspace%num_dim = num_dim
+    wkspace%num_eqn = num_eqn
     wkspace%num_waves = num_waves
+    wkspace%char_decomp = char_decomp
+    wkspace%lim_type = lim_type
 
     allocate(wkspace%ql(num_eqn,1-num_ghost:maxnx+num_ghost))
     allocate(wkspace%qr(num_eqn,1-num_ghost:maxnx+num_ghost))
@@ -55,6 +68,38 @@ contains
     allocate(wkspace%xupper(num_dim))
     allocate(wkspace%dx(num_dim))
     allocate(wkspace%mthlim(num_waves))
+
+    select case(lim_type)
+    case(1)
+       select case(char_decomp)
+       case(1) ! Storage for tvd2_wave()
+          allocate(wkspace%uu(num_waves,1-num_ghost:maxnx+num_ghost))
+       case(2) ! Storage for tvd2_char()
+          ! Do the array bounds here cause a bug?
+          allocate(wkspace%dq(num_eqn,1-num_ghost:maxnx+num_ghost))
+          allocate( wkspace%u(num_eqn,2,1-num_ghost:maxnx+num_ghost))
+          allocate(wkspace%hh(-1:1,1-num_ghost:maxnx+num_ghost))
+       end select
+    case(2)
+       select case(char_decomp)
+       case(0)
+          allocate(wkspace%uu(2,maxnx+2*num_ghost))
+          allocate(wkspace%dq1m(maxnx+2*num_ghost))
+       case(2) ! Storage for weno5_char
+          allocate(wkspace%dq(num_eqn,maxnx+2*num_ghost))
+          allocate(wkspace%uu(2,maxnx+2*num_ghost))
+          allocate(wkspace%hh(-2:2,maxnx+2*num_ghost))
+       case(3) ! Storage for weno5_trans
+          allocate(wkspace%dq(num_eqn,maxnx+2*num_ghost))
+          allocate(wkspace%gg(num_eqn,maxnx+2*num_ghost))
+          allocate(wkspace%u(num_eqn,2,maxnx+2*num_ghost))
+          allocate(wkspace%hh(-2:2,maxnx+2*num_ghost))
+          allocate(wkspace%uh(num_eqn,2,maxnx+2*num_ghost))
+       end select
+    case(3)
+       allocate(wkspace%uu(2,maxnx+2*num_ghost))
+       allocate(wkspace%dq1m(maxnx+2*num_ghost))
+    end select
 
     wkspace%work_alloc = .true.
 
