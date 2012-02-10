@@ -6,23 +6,29 @@ PYCLAWMAKE = $(PYCLAW)/Makefile.common
 # variables and hoping it all works out is way more fragile than I want
 # any part of.
 
-FCOMPILE_SINGLE = ${FC} -c ${FC_FLAGS} ${FFLAGS} ${FCPPFLAGS}
+SHARPCLAW = $(PYCLAW)/src/pyclaw/sharpclaw
+ONE_D_SHARPCLAW_SOURCES = $(SHARPCLAW)/workspace.f90 $(SHARPCLAW)/flux1.f90 $(SHARPCLAW)/weno.f90 $(SHARPCLAW)/reconstruct.f90 $(SHARPCLAW)/tfluct.f90 $(SHARPCLAW)/evec.f90
 
-RP_SOURCE =  $(RIEMANN)/src/rp1_acoustics.f90
+sharpclaw1.so:
+	gfortran -O3 -fPIC -shared -o sharpclaw1.so -std=f2008 $(ONE_D_SHARPCLAW_SOURCES)
 
-F2PY = f2py
-PYTHON = python
-MODULE = assembly
+# FCOMPILE_SINGLE = ${FC} -c ${FC_FLAGS} ${FFLAGS} ${FCPPFLAGS}
 
-all: 
-	make classic1.so
-	make sharpclaw1.so
+# RP_SOURCE =  $(RIEMANN)/src/rp1_acoustics.f90
 
-${MODULE}.so: ${MODULE}.pyx ${MODULE}impl.h ${MODULE}impl.c petscdadef.h
-	CC='${PCC}' CFLAGS='${PCC_FLAGS}' F90='${FC_LINKER}' FFLAGS='${FFLAGS}' LDFLAGS='${FC_LINKER_FLAGS}' ${PYTHON} setup.py -q build_ext --inplace
-	${RM} -r build ${MODULE}_wrap.c
+# F2PY = f2py
+# PYTHON = python
+# MODULE = assembly
 
-include $(PYCLAWMAKE)
+# all: 
+# 	make classic1.so
+# 	make sharpclaw1.so
 
-#include ${PETSC_DIR}/conf/variables
+# ${MODULE}.so: ${MODULE}.pyx ${MODULE}impl.h ${MODULE}impl.c petscdadef.h
+# 	CC='${PCC}' CFLAGS='${PCC_FLAGS}' F90='${FC_LINKER}' FFLAGS='${FFLAGS}' LDFLAGS='${FC_LINKER_FLAGS}' ${PYTHON} setup.py -q build_ext --inplace
+# 	${RM} -r build ${MODULE}_wrap.c
+
+# include $(PYCLAWMAKE)
+
+# #include ${PETSC_DIR}/conf/variables
 
