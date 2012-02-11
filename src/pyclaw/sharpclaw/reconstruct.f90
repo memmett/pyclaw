@@ -1,5 +1,5 @@
 module reconstruct
-  use workspace_module
+  use workspace
 contains
 
   ! subroutine dealloc_recon_workspace(lim_type,char_decomp)
@@ -36,11 +36,11 @@ contains
   ! end subroutine dealloc_recon_workspace
 
 
-  subroutine weno_comp(wkspace,q,ql,qr,num_eqn,maxnx,num_ghost)
+  subroutine weno_comp(wks,q,ql,qr,num_eqn,maxnx,num_ghost)
     use weno
     implicit none
 
-    type(workspace), intent(inout) :: wkspace
+    type(wkspace), intent(inout) :: wks
 
     integer(c_int), intent(in) :: num_eqn, maxnx, num_ghost
     real(c_double), intent(in) ::  q(num_eqn,maxnx+2*num_ghost)
@@ -48,7 +48,7 @@ contains
          ql(num_eqn,maxnx+2*num_ghost),&
          qr(num_eqn,maxnx+2*num_ghost)
 
-    select case(wkspace%weno_order)
+    select case(wks%weno_order)
     case (5)
        call weno5(q,ql,qr,num_eqn,maxnx,num_ghost)
     case (7)
@@ -72,17 +72,21 @@ contains
 
 
   ! ===================================================================
-  subroutine weno5(wkspace,q,ql,qr,num_eqn,maxnx,num_ghost)
+  subroutine weno5(wks,q,ql,qr,num_eqn,maxnx,num_ghost)
     ! ===================================================================
 
     implicit double precision (a-h,o-z)
 
-    type(workspace), intent(inout) :: wkspace
+    type(wkspace), intent(inout) :: wks
 
     double precision, intent(in) :: q(num_eqn,maxnx+2*num_ghost)
     double precision, intent(out) :: ql(num_eqn,maxnx+2*num_ghost),qr(num_eqn,maxnx+2*num_ghost)
 
     integer :: num_eqn, mx2
+
+    type(wkblob), pointer :: wkb
+
+    call c_f_pointer(wks%bptr, wkb)
 
     mx2  = size(q,2); num_eqn = size(q,1)
 
@@ -94,7 +98,7 @@ contains
 
        forall (i=2:mx2)
           ! compute and store the differences of the cell averages
-          wkspace%dq1m(i)=q(m,i)-q(m,i-1)
+          wkb%dq1m(i)=q(m,i)-q(m,i-1)
        end forall
 
        ! the reconstruction
@@ -109,13 +113,13 @@ contains
 
           do i=num_ghost,mx2-num_ghost+1
 
-             t1=im*(dq1m(i+intwo)-dq1m(i+inone))
-             t2=im*(dq1m(i+inone)-dq1m(i      ))
-             t3=im*(dq1m(i      )-dq1m(i+ione ))
+             t1=im*(wkb%dq1m(i+intwo)-wkb%dq1m(i+inone))
+             t2=im*(wkb%dq1m(i+inone)-wkb%dq1m(i      ))
+             t3=im*(wkb%dq1m(i      )-wkb%dq1m(i+ione ))
 
-             tt1=13.*t1**2+3.*(   dq1m(i+intwo)-3.*dq1m(i+inone))**2
-             tt2=13.*t2**2+3.*(   dq1m(i+inone)+   dq1m(i      ))**2
-             tt3=13.*t3**2+3.*(3.*dq1m(i      )-   dq1m(i+ione ))**2
+             tt1=13.*t1**2+3.*(   wkb%dq1m(i+intwo)-3.*wkb%dq1m(i+inone))**2
+             tt2=13.*t2**2+3.*(   wkb%dq1m(i+inone)+   wkb%dq1m(i      ))**2
+             tt3=13.*t3**2+3.*(3.*wkb%dq1m(i      )-   wkb%dq1m(i+ione ))**2
 
              tt1=(epweno+tt1)**2
              tt2=(epweno+tt2)**2
@@ -127,14 +131,14 @@ contains
              s1 =s1*t0
              s3 =s3*t0
 
-             wkspace%uu(m1,i) = (s1*(t2-t1)+(0.5*s3-0.25)*(t3-t2))/3. &
+             wkb%uu(m1,i) = (s1*(t2-t1)+(0.5*s3-0.25)*(t3-t2))/3. &
                   +(-q(m,i-2)+7.*(q(m,i-1)+q(m,i))-q(m,i+1))/12.
 
           end do
        end do
 
-       qr(m,num_ghost-1:mx2-num_ghost  )=wkspace%uu(1,num_ghost:mx2-num_ghost+1)
-       ql(m,num_ghost  :mx2-num_ghost+1)=wkspace%uu(2,num_ghost:mx2-num_ghost+1)
+       qr(m,num_ghost-1:mx2-num_ghost  )=wkb%uu(1,num_ghost:mx2-num_ghost+1)
+       ql(m,num_ghost  :mx2-num_ghost+1)=wkb%uu(2,num_ghost:mx2-num_ghost+1)
 
     end do
 
@@ -143,7 +147,7 @@ contains
 
 
   ! ===================================================================
-  subroutine weno5_char(wkspace,q,ql,qr,evl,evr)
+  subroutine weno5_char(wks,q,ql,qr,evl,evr)
     ! ===================================================================
 
     ! This one uses characteristic decomposition
@@ -151,14 +155,19 @@ contains
 
     implicit double precision (a-h,o-z)
 
-    type(workspace), intent(inout) :: wkspace
+    type(wkspace), intent(inout) :: wks
 
     double precision, intent(in) :: q(:,:)
     double precision, intent(out) :: ql(:,:),qr(:,:)
     double precision, intent(in) :: evl(:,:,:),evr(:,:,:)
 
+    type(wkblob), pointer :: wkb
+
     integer, parameter :: num_ghost=3
     integer :: num_eqn, mx2
+
+    call c_f_pointer(wks%bptr, wkb)
+
 
     mx2  = size(q,2); num_eqn = size(q,1)
 
@@ -167,7 +176,7 @@ contains
 
     forall(m=1:num_eqn,i=2:mx2)
        ! compute and store the differences of the cell averages
-       wkspace%dq(m,i)=q(m,i)-q(m,i-1)
+       wkb%dq(m,i)=q(m,i)-q(m,i-1)
     end forall
 
     forall(m=1:num_eqn,i=3:mx2-1)
@@ -185,9 +194,9 @@ contains
 
        do m2 = -2,2
           do  i = num_ghost+1,mx2-2
-             wkspace%hh(m2,i) = 0.d0
+             wkb%hh(m2,i) = 0.d0
              do m=1,num_eqn 
-                wkspace%hh(m2,i) = wkspace%hh(m2,i)+ wkspace%evl(ip,m,i)*wkspace%dq(m,i+m2)
+                wkb%hh(m2,i) = wkb%hh(m2,i)+ wkb%evl(ip,m,i)*wkb%dq(m,i+m2)
              enddo
           enddo
        enddo
@@ -207,13 +216,13 @@ contains
 
           do i=num_ghost,mx2-num_ghost+1
 
-             t1=im*(hh(intwo,i)-hh(inone,i))
-             t2=im*(hh(inone,i)-hh(0,i    ))
-             t3=im*(hh(0,i    )-hh(ione,i ))
+             t1=im*(wkb%hh(intwo,i)-wkb%hh(inone,i))
+             t2=im*(wkb%hh(inone,i)-wkb%hh(0,i    ))
+             t3=im*(wkb%hh(0,i    )-wkb%hh(ione,i ))
 
-             tt1=13.*t1**2+3.*(   hh(intwo,i)-3.*hh(inone,i))**2
-             tt2=13.*t2**2+3.*(   hh(inone,i)+   hh(0,i    ))**2
-             tt3=13.*t3**2+3.*(3.*hh(0,i    )-   hh(ione,i ))**2
+             tt1=13.*t1**2+3.*(   wkb%hh(intwo,i)-3.*wkb%hh(inone,i))**2
+             tt2=13.*t2**2+3.*(   wkb%hh(inone,i)+   wkb%hh(0,i    ))**2
+             tt3=13.*t3**2+3.*(3.*wkb%hh(0,i    )-   wkb%hh(ione,i ))**2
 
              tt1=(epweno+tt1)**2
              tt2=(epweno+tt2)**2
@@ -225,7 +234,7 @@ contains
              s1 =s1*t0
              s3 =s3*t0
 
-             wkspace%uu(m1,i) = ( s1*(t2-t1) + (0.5*s3-0.25)*(t3-t2) ) /3.
+             wkb%uu(m1,i) = ( s1*(t2-t1) + (0.5*s3-0.25)*(t3-t2) ) /3.
 
           end do !end loop over interfaces
        end do !end loop over which side of interface
@@ -233,8 +242,8 @@ contains
        ! Project to the physical space:
        do m = 1,num_eqn
           do i=num_ghost,mx2-num_ghost+1
-             qr(m,i-1) = qr(m,i-1) + wkspace%evr(i,m,ip)*uu(1,i)
-             ql(m,i  ) = ql(m,i  ) + wkspace%evr(i,m,ip)*uu(2,i)
+             qr(m,i-1) = qr(m,i-1) + wkb%evr(i,m,ip)*wkb%uu(1,i)
+             ql(m,i  ) = ql(m,i  ) + wkb%evr(i,m,ip)*wkb%uu(2,i)
           enddo
        enddo
     enddo !end loop over waves
@@ -243,14 +252,14 @@ contains
   end subroutine weno5_char
 
   ! ===================================================================
-  subroutine weno5_trans(wkspace,q,ql,qr,evl,evr)
+  subroutine weno5_trans(wks,q,ql,qr,evl,evr)
     ! ===================================================================
 
     ! Transmission-based WENO reconstruction
 
     implicit double precision (a-h,o-z)
 
-    type(workspace), intent(inout) :: wkspace
+    type(wkspace), intent(inout) :: wks
 
     double precision, intent(in) :: q(:,:)
     double precision, intent(out) :: ql(:,:),qr(:,:)
@@ -258,6 +267,10 @@ contains
 
     integer, parameter :: num_ghost=3
     integer :: num_eqn, mx2
+
+    type(wkblob), pointer :: wkb
+
+    call c_f_pointer(wks%bptr, wkb)
 
     mx2  = size(q,2); num_eqn = size(q,1)
 
@@ -267,7 +280,7 @@ contains
     do m=1,num_eqn
        ! compute and store the differences of the cell averages
        forall (i=2:mx2)
-          wkspace%dq(m,i)=q(m,i)-q(m,i-1)
+          wkb%dq(m,i)=q(m,i)-q(m,i-1)
        end forall
     enddo
 
@@ -275,9 +288,9 @@ contains
     ! 'm'th characteristic field
     do mw=1,num_eqn
        do i = 2,mx2
-          wkspace%gg(mw,i) = 0.d0
+          wkb%gg(mw,i) = 0.d0
           do m=1,num_eqn
-             wkspace%gg(mw,i) = wkspace%gg(mw,i)+ wkspace%evl(mw,m,i)*wkspace%dq(m,i)
+             wkb%gg(mw,i) = wkb%gg(mw,i)+ wkb%evl(mw,m,i)*wkb%dq(m,i)
           enddo
        enddo
     enddo
@@ -288,10 +301,10 @@ contains
 
        do m1 = -2,2
           do  i = num_ghost+1,mx2-2
-             wkspace%hh(m1,i) = 0.d0
+             wkb%hh(m1,i) = 0.d0
              do m=1,num_eqn 
-                wkspace%hh(m1,i) = wkspace%hh(m1,i)+wkspace%evl(mw,m,i)* &
-                     wkspace%gg(i+m1,mw)*wkspace%evr(i+m1,m,mw)
+                wkb%hh(m1,i) = wkb%hh(m1,i)+wkb%evl(mw,m,i)* &
+                     wkb%gg(i+m1,mw)*wkb%evr(i+m1,m,mw)
              enddo
           enddo
        enddo
@@ -306,13 +319,13 @@ contains
 
           do i=num_ghost,mx2-num_ghost+1
 
-             t1=im*(hh(intwo,i)-hh(inone,i))
-             t2=im*(hh(inone,i)-hh(0,i    ))
-             t3=im*(hh(0,i    )-hh(ione,i ))
+             t1=im*(wkb%hh(intwo,i)-wkb%hh(inone,i))
+             t2=im*(wkb%hh(inone,i)-wkb%hh(0,i    ))
+             t3=im*(wkb%hh(0,i    )-wkb%hh(ione,i ))
 
-             tt1=13.*t1**2+3.*(   hh(intwo,i)-3.*hh(inone,i))**2
-             tt2=13.*t2**2+3.*(   hh(inone,i)+   hh(0,i    ))**2
-             tt3=13.*t3**2+3.*(3.*hh(0,i    )-   hh(ione,i ))**2
+             tt1=13.*t1**2+3.*(   wkb%hh(intwo,i)-3.*wkb%hh(inone,i))**2
+             tt2=13.*t2**2+3.*(   wkb%hh(inone,i)+   wkb%hh(0,i    ))**2
+             tt3=13.*t3**2+3.*(3.*wkb%hh(0,i    )-   wkb%hh(ione,i ))**2
 
              tt1=(epweno+tt1)**2
              tt2=(epweno+tt2)**2
@@ -324,7 +337,7 @@ contains
              s1 =s1*t0
              s3 =s3*t0
 
-             wkspace%u(mw,m1,i) = ( s1*(t2-t1) + (0.5*s3-0.25)*(t3-t2) ) /3.
+             wkb%u(mw,m1,i) = ( s1*(t2-t1) + (0.5*s3-0.25)*(t3-t2) ) /3.
 
           enddo
        enddo
@@ -335,17 +348,17 @@ contains
     do m1 =  1,2
        do m =  1, num_eqn
           do i = num_ghost,mx2-num_ghost+1
-             wkspace%uh(m,m1,i) =( -q(m,i-2) + 7*( q(m,i-1)+q(m,i) ) &
+             wkb%uh(m,m1,i) =( -q(m,i-2) + 7*( q(m,i-1)+q(m,i) ) &
                   - q(m,i+1) )/12.
              do mw=1,num_eqn 
-                wkspace%uh(m,m1,i) = wkspace%uh(m,m1,i) + wkspace%evr(m,mw,i)*wkspace%u(mw,m1,i)
+                wkb%uh(m,m1,i) = wkb%uh(m,m1,i) + wkb%evr(m,mw,i)*wkb%u(mw,m1,i)
              enddo
           enddo
        enddo
     enddo
 
-    qr(1:num_eqn,num_ghost-1:mx2-num_ghost) = wkspace%uh(1:num_eqn,1,num_ghost:mx2-num_ghost+1)
-    ql(1:num_eqn,num_ghost:mx2-num_ghost+1) = wkspace%uh(1:num_eqn,2,num_ghost:mx2-num_ghost+1)
+    qr(1:num_eqn,num_ghost-1:mx2-num_ghost) = wkb%uh(1:num_eqn,1,num_ghost:mx2-num_ghost+1)
+    ql(1:num_eqn,num_ghost:mx2-num_ghost+1) = wkb%uh(1:num_eqn,2,num_ghost:mx2-num_ghost+1)
 
     return
   end subroutine weno5_trans
@@ -587,7 +600,7 @@ contains
 
 
   ! ===================================================================
-  subroutine tvd2_char(wkspace,q,ql,qr,mthlim,evl,evr)
+  subroutine tvd2_char(wks,q,ql,qr,mthlim,evl,evr)
     ! ===================================================================
 
     ! Second order TVD reconstruction for WENOCLAW
@@ -596,7 +609,7 @@ contains
     !  evl, evr are left and right eigenvectors at each interface
     implicit double precision (a-h,o-z)
 
-    type(workspace), intent(inout) :: wkspace
+    type(wkspace), intent(inout) :: wks
 
     double precision, intent(in) :: q(:,:)
     integer, intent(in) :: mthlim(:)
@@ -605,6 +618,10 @@ contains
     integer, parameter :: num_ghost=2
     integer :: num_eqn, mx2
 
+    type(wkblob), pointer :: wkb
+
+    call c_f_pointer(wks%bptr, wkb)
+
     mx2  = size(q,2); num_eqn = size(q,1); 
 
     ! loop over all equations (all components).  
@@ -612,7 +629,7 @@ contains
 
     ! compute and store the differences of the cell averages
     forall(m=1:num_eqn,i=2:mx2)
-       wkspace%dq(m,i)=q(m,i)-q(m,i-1)
+       wkb%dq(m,i)=q(m,i)-q(m,i-1)
     end forall
 
     do m=1,num_eqn
@@ -621,9 +638,9 @@ contains
        ! 'm'th characteristic field
        do m1 = -1,1
           do  i = num_ghost+1,mx2-1
-             wkspace%hh(m1,i) = 0.d0
+             wkb%hh(m1,i) = 0.d0
              do mm=1,num_eqn
-                wkspace%hh(m1,i) = wkspace%hh(m1,i)+ wkspace%evl(m,mm,i)*dq(mm,i+m1)
+                wkb%hh(m1,i) = wkb%hh(m1,i)+ wkb%evl(m,mm,i)*wkb%dq(mm,i+m1)
              enddo
           enddo
        enddo
@@ -638,8 +655,8 @@ contains
           do i=num_ghost+1,mx2-1
              ! dqp=hh(m1-1,i)
              ! dqm=hh(m1-2,i)
-             if (dabs(hh(m1-2,i)).gt.1.e-14) then
-                r=wkspace%hh(m1-1,i)/hh(m1-2,i)
+             if (dabs(wkb%hh(m1-2,i)).gt.1.e-14) then
+                r=wkb%hh(m1-1,i)/wkb%hh(m1-2,i)
              else
                 r=0.d0
              endif
@@ -668,7 +685,7 @@ contains
                 slimitr = dmax1(0.d0, dmin1(pp,amax))
              end select
 
-             wkspace%u(m,m1,i) = im*0.5d0*slimitr*wkspace%hh(m1-2,i)
+             wkb%u(m,m1,i) = im*0.5d0*slimitr*wkb%hh(m1-2,i)
 
           enddo
        enddo
@@ -680,22 +697,22 @@ contains
           qr(m,i-1)=q(m,i-1)
           ql(m,i  )=q(m,i  )
           do mm=1,num_eqn 
-             qr(m,i-1) = qr(m,i-1) + wkspace%evr(m,mm,i)*wkspace%u(mm,1,i)
-             ql(m,i  ) = ql(m,i  ) + wkspace%evr(m,mm,i)*wkspace%u(mm,2,i)
+             qr(m,i-1) = qr(m,i-1) + wkb%evr(m,mm,i)*wkb%u(mm,1,i)
+             ql(m,i  ) = ql(m,i  ) + wkb%evr(m,mm,i)*wkb%u(mm,2,i)
           enddo
        enddo
     enddo
   end subroutine tvd2_char
 
   ! ===================================================================
-  subroutine tvd2_wave(wkspace,q,ql,qr,wave,s,mthlim)
+  subroutine tvd2_wave(wks,q,ql,qr,wave,s,mthlim)
     ! ===================================================================
     ! Second order TVD reconstruction for WENOCLAW
     ! This one uses projected waves
 
     implicit double precision (a-h,o-z)
 
-    type(workspace), intent(inout) :: wkspace
+    type(wkspace), intent(inout) :: wks
 
     double precision, intent(in) :: q(:,:)
     integer, intent(in) :: mthlim(:)
@@ -703,6 +720,9 @@ contains
     double precision, intent(in) :: wave(:,:,:), s(:,:)
     integer, parameter :: num_ghost=2
     integer :: num_eqn, mx2
+
+    type(wkblob), pointer :: wkb
+    call c_f_pointer(wks%bptr, wkb)
 
     mx2  = size(q,2); num_eqn = size(q,1); num_waves=size(wave,2)
 
@@ -757,11 +777,11 @@ contains
              wlimitr = dmax1(0.d0, dmin1(pp,amax))
           end select
 
-          wkspace%uu(mw,i) = 0.5d0*wlimitr
+          wkb%uu(mw,i) = 0.5d0*wlimitr
 
           do m =  1, num_eqn
-             qr(m,i-1) = qr(m,i-1) + wave(m,mw,i)*wkspace%uu(mw,i)
-             ql(m,i  ) = ql(m,i  ) - wave(m,mw,i)*wkspace%uu(mw,i)
+             qr(m,i-1) = qr(m,i-1) + wave(m,mw,i)*wkb%uu(mw,i)
+             ql(m,i  ) = ql(m,i  ) - wave(m,mw,i)*wkb%uu(mw,i)
           enddo ! end loop over equations
 
        enddo

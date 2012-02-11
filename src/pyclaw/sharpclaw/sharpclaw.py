@@ -248,33 +248,37 @@ class SharpClawSolver(Solver):
         return deltaq.flatten('f')
 
 
-    def set_fortran_parameters(self,state,clawparams,workspace,reconstruct):
+    def set_fortran_parameters(self,state):
         """
         Set parameters for Fortran modules used by SharpClaw.
         The modules should be imported and passed as arguments to this function.
 
         """
         grid = state.grid
+        clawparams = self.sharpclaw.params
         clawparams.num_dim       = grid.num_dim
+        clawparams.num_eqn       = state.num_eqn
+        clawparams.maxnx         = max(grid.num_cells)+2*self.num_ghost
         clawparams.lim_type      = self.lim_type
         clawparams.weno_order    = self.weno_order
         clawparams.char_decomp   = self.char_decomp
         clawparams.tfluct_solver = self.tfluct_solver
         clawparams.fwave         = self.fwave
-        clawparams.index_capa         = state.index_capa+1
-
+        clawparams.index_capa    = state.index_capa+1
         clawparams.num_waves     = self.num_waves
-        clawparams.alloc_clawparams()
-        for idim in range(grid.num_dim):
-            clawparams.xlower[idim]=grid.dimensions[idim].lower
-            clawparams.xupper[idim]=grid.dimensions[idim].upper
-        clawparams.dx       =grid.delta
-        clawparams.mthlim   =self._mthlim
 
-        maxnx = max(grid.num_cells)+2*self.num_ghost
-        workspace.alloc_workspace(maxnx,self.num_ghost,state.num_eqn,self.num_waves,self.char_decomp)
-        reconstruct.alloc_recon_workspace(maxnx,self.num_ghost,state.num_eqn,self.num_waves,
-                                            clawparams.lim_type,clawparams.char_decomp)
+        self.sharpclaw.setup()
+
+        # for idim in range(grid.num_dim):
+        #     clawparams.xlower[idim]=grid.dimensions[idim].lower
+        #     clawparams.xupper[idim]=grid.dimensions[idim].upper
+        # clawparams.dx       =grid.delta
+        # clawparams.mthlim   =self._mthlim
+
+        # maxnx = max(grid.num_cells)+2*self.num_ghost
+        # workspace.alloc_workspace(maxnx,self.num_ghost,state.num_eqn,self.num_waves,self.char_decomp)
+        # reconstruct.alloc_recon_workspace(maxnx,self.num_ghost,state.num_eqn,self.num_waves,
+        #                                     clawparams.lim_type,clawparams.char_decomp)
 
     def allocate_rk_stages(self,solution):
         r"""
@@ -341,10 +345,10 @@ class SharpClawSolver1D(SharpClawSolver):
         state = solution.states[0]
 
         if self.kernel_language=='Fortran':
-            from sharpclaw1 import clawparams, workspace, reconstruct
             import sharpclaw1
-            state.set_cparam(sharpclaw1)
-            self.set_fortran_parameters(state,clawparams,workspace,reconstruct)
+            self.sharpclaw = sharpclaw1.sharpclaw1()
+            # state.set_cparam(sharpclaw1)
+            self.set_fortran_parameters(state)
 
         self.allocate_bc_arrays(state)
 
@@ -404,8 +408,7 @@ class SharpClawSolver1D(SharpClawSolver):
         ixy=1
 
         if self.kernel_language=='Fortran':
-            from sharpclaw1 import flux1
-            dq,cfl=flux1(q,self.auxbc,self.dt,state.t,ixy,mx,self.num_ghost,mx)
+            dq, cfl = self.sharpclaw.flux1(q, self.auxbc, self.dt, state.t)
 
         elif self.kernel_language=='Python':
 

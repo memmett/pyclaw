@@ -146,6 +146,7 @@ class Solver(object):
         self.qbc = None
         self.auxbc = None
         self.rp = None
+        self.sharpclaw = None
 
         # select package to build solver objects from, by default this will be
         # the package that contains the module implementing the derived class

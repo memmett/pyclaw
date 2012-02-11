@@ -7,10 +7,10 @@ PYCLAWMAKE = $(PYCLAW)/Makefile.common
 # any part of.
 
 SHARPCLAW = $(PYCLAW)/src/pyclaw/sharpclaw
-ONE_D_SHARPCLAW_SOURCES = $(SHARPCLAW)/workspace.f90 $(SHARPCLAW)/flux1.f90 $(SHARPCLAW)/weno.f90 $(SHARPCLAW)/reconstruct.f90 $(SHARPCLAW)/tfluct.f90 $(SHARPCLAW)/evec.f90
+ONE_D_SHARPCLAW_SOURCES = $(SHARPCLAW)/workspace.f90 $(SHARPCLAW)/flux1.f90 $(SHARPCLAW)/weno.f90 $(SHARPCLAW)/reconstruct.f90 $(SHARPCLAW)/tfluct.f90 $(SHARPCLAW)/evec.f90 $(RIEMANN)/src/rp1_acoustics.f90
 
-sharpclaw1.so:
-	gfortran -O3 -fPIC -shared -o sharpclaw1.so -std=f2008 $(ONE_D_SHARPCLAW_SOURCES)
+libsharpclaw1.so: 
+	gfortran -O3 -fPIC -shared -o libsharpclaw1.so -std=f2008 $(ONE_D_SHARPCLAW_SOURCES)
 
 # FCOMPILE_SINGLE = ${FC} -c ${FC_FLAGS} ${FFLAGS} ${FCPPFLAGS}
 

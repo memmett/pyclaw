@@ -1,15 +1,23 @@
-module workspace_module
+module workspace
 
   use iso_c_binding
 
-  type :: workspace
+  type, bind(c) :: wkspace
      
-     logical :: work_alloc = .false.
-
      integer(c_int) :: maxnx, num_ghost
      integer(c_int) :: num_eqn, num_dim, num_waves, index_capa
      integer(c_int) :: char_decomp, lim_type, multid_recon, weno_order
-     logical :: fwave, tfluct_solver
+     integer(c_int) :: fwave, tfluct_solver
+
+     real(c_double) :: epweno = 1.e-36
+
+     type(c_ptr) :: bptr
+
+  end type wkspace
+
+  type :: wkblob
+     
+     logical :: allocated = .false.
 
      real(c_double), pointer :: ql(:,:), qr(:,:), dtdx(:)
      real(c_double), pointer :: evl(:,:,:), evr(:,:,:)
@@ -23,112 +31,132 @@ module workspace_module
      real(c_double), pointer :: dq1m(:)
      real(c_double), pointer :: uu(:,:), dq(:,:)
      real(c_double), pointer :: uh(:,:,:), gg(:,:), hh(:,:), u(:,:,:)
-     real(c_double) :: epweno = 1.e-36
 
-  end type workspace
+  end type wkblob
 
 contains
   
-  subroutine alloc_workspace(cptr,maxnx,num_ghost,num_dim,num_eqn,num_waves,char_decomp,lim_type) &
-       bind(c, name='alloc_workspace')
-
+  subroutine create_workspace(cptr) bind(c, name='create_workspace')
+    implicit none
     type(c_ptr), intent(out) :: cptr
-    integer(c_int), intent(in), value :: maxnx, num_ghost 
-    integer(c_int), intent(in), value :: num_dim, num_eqn, num_waves
-    integer(c_int), intent(in), value :: char_decomp, lim_type
-    type(workspace), pointer :: wkspace
+    type(wkspace), pointer :: wks
 
-    allocate(wkspace)
-    cptr = c_loc(wkspace)
+    allocate(wks)
+    cptr = c_loc(wks)
 
-    wkspace%maxnx = maxnx
-    wkspace%num_ghost = num_ghost
-    wkspace%num_dim = num_dim
-    wkspace%num_eqn = num_eqn
-    wkspace%num_waves = num_waves
-    wkspace%char_decomp = char_decomp
-    wkspace%lim_type = lim_type
+    wks%maxnx = -1
 
-    allocate(wkspace%ql(num_eqn,1-num_ghost:maxnx+num_ghost))
-    allocate(wkspace%qr(num_eqn,1-num_ghost:maxnx+num_ghost))
-    allocate(wkspace%amdq(num_eqn,1-num_ghost:maxnx+num_ghost))
-    allocate(wkspace%apdq(num_eqn,1-num_ghost:maxnx+num_ghost))
-    allocate(wkspace%amdq2(num_eqn,1-num_ghost:maxnx+num_ghost))
-    allocate(wkspace%apdq2(num_eqn,1-num_ghost:maxnx+num_ghost))
-    allocate(wkspace%wave(num_eqn,num_waves,1-num_ghost:maxnx+num_ghost))
-    allocate(wkspace%s(num_waves,1-num_ghost:maxnx+num_ghost))
-    allocate(wkspace%dtdx(1-num_ghost:maxnx+num_ghost))
+  end subroutine create_workspace
 
-    if (wkspace%char_decomp>1) then
-       allocate(wkspace%evl(num_eqn,num_eqn,1-num_ghost:maxnx+num_ghost))
-       allocate(wkspace%evr(num_eqn,num_eqn,1-num_ghost:maxnx+num_ghost))
+  subroutine hello_workspace(cptr) bind(c, name='hello_workspace')
+
+    type(c_ptr), intent(inout) :: cptr
+    type(wkspace), pointer :: wks
+    type(wkblob), pointer :: wkb
+
+    call c_f_pointer(cptr, wks)
+
+    print *, 'HELLO!', wks%maxnx
+
+    wks%maxnx = 44
+
+  end subroutine hello_workspace
+
+  subroutine setup_workspace(cptr) bind(c, name='setup_workspace')
+
+    type(c_ptr), intent(inout) :: cptr
+    type(wkspace), pointer :: wks
+    type(wkblob), pointer :: wkb
+
+    call c_f_pointer(cptr, wks)
+
+    allocate(wkb)
+    wks%bptr = c_loc(wkb)
+
+    allocate(wkb%ql(wks%num_eqn,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+    allocate(wkb%qr(wks%num_eqn,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+    allocate(wkb%amdq(wks%num_eqn,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+    allocate(wkb%apdq(wks%num_eqn,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+    allocate(wkb%amdq2(wks%num_eqn,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+    allocate(wkb%apdq2(wks%num_eqn,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+    allocate(wkb%wave(wks%num_eqn,num_waves,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+    allocate(wkb%s(num_waves,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+    allocate(wkb%dtdx(1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+
+    if (wks%char_decomp>1) then
+       allocate(wkb%evl(wks%num_eqn,wks%num_eqn,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+       allocate(wkb%evr(wks%num_eqn,wks%num_eqn,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
     endif
 
-    allocate(wkspace%xlower(num_dim))
-    allocate(wkspace%xupper(num_dim))
-    allocate(wkspace%dx(num_dim))
-    allocate(wkspace%mthlim(num_waves))
+    allocate(wkb%xlower(num_dim))
+    allocate(wkb%xupper(num_dim))
+    allocate(wkb%dx(num_dim))
+    allocate(wkb%mthlim(num_waves))
 
-    select case(lim_type)
+    select case(wks%lim_type)
     case(1)
-       select case(char_decomp)
+       select case(wks%char_decomp)
        case(1) ! Storage for tvd2_wave()
-          allocate(wkspace%uu(num_waves,1-num_ghost:maxnx+num_ghost))
+          allocate(wkb%uu(num_waves,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
        case(2) ! Storage for tvd2_char()
           ! Do the array bounds here cause a bug?
-          allocate(wkspace%dq(num_eqn,1-num_ghost:maxnx+num_ghost))
-          allocate( wkspace%u(num_eqn,2,1-num_ghost:maxnx+num_ghost))
-          allocate(wkspace%hh(-1:1,1-num_ghost:maxnx+num_ghost))
+          allocate(wkb%dq(wks%num_eqn,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+          allocate( wkb%u(wks%num_eqn,2,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
+          allocate(wkb%hh(-1:1,1-wks%num_ghost:wks%maxnx+wks%num_ghost))
        end select
     case(2)
-       select case(char_decomp)
+       select case(wks%char_decomp)
        case(0)
-          allocate(wkspace%uu(2,maxnx+2*num_ghost))
-          allocate(wkspace%dq1m(maxnx+2*num_ghost))
+          allocate(wkb%uu(2,wks%maxnx+2*wks%num_ghost))
+          allocate(wkb%dq1m(wks%maxnx+2*wks%num_ghost))
        case(2) ! Storage for weno5_char
-          allocate(wkspace%dq(num_eqn,maxnx+2*num_ghost))
-          allocate(wkspace%uu(2,maxnx+2*num_ghost))
-          allocate(wkspace%hh(-2:2,maxnx+2*num_ghost))
+          allocate(wkb%dq(wks%num_eqn,wks%maxnx+2*wks%num_ghost))
+          allocate(wkb%uu(2,wks%maxnx+2*wks%num_ghost))
+          allocate(wkb%hh(-2:2,wks%maxnx+2*wks%num_ghost))
        case(3) ! Storage for weno5_trans
-          allocate(wkspace%dq(num_eqn,maxnx+2*num_ghost))
-          allocate(wkspace%gg(num_eqn,maxnx+2*num_ghost))
-          allocate(wkspace%u(num_eqn,2,maxnx+2*num_ghost))
-          allocate(wkspace%hh(-2:2,maxnx+2*num_ghost))
-          allocate(wkspace%uh(num_eqn,2,maxnx+2*num_ghost))
+          allocate(wkb%dq(wks%num_eqn,wks%maxnx+2*wks%num_ghost))
+          allocate(wkb%gg(wks%num_eqn,wks%maxnx+2*wks%num_ghost))
+          allocate(wkb%u(wks%num_eqn,2,wks%maxnx+2*wks%num_ghost))
+          allocate(wkb%hh(-2:2,wks%maxnx+2*wks%num_ghost))
+          allocate(wkb%uh(wks%num_eqn,2,wks%maxnx+2*wks%num_ghost))
        end select
     case(3)
-       allocate(wkspace%uu(2,maxnx+2*num_ghost))
-       allocate(wkspace%dq1m(maxnx+2*num_ghost))
+       allocate(wkb%uu(2,wks%maxnx+2*wks%num_ghost))
+       allocate(wkb%dq1m(wks%maxnx+2*wks%num_ghost))
     end select
 
-    wkspace%work_alloc = .true.
+    wkb%allocated = .true.
 
-  end subroutine alloc_workspace
+  end subroutine setup_workspace
 
-  subroutine dealloc_workspace(cptr) bind(c, name='dealloc_workspace')
+  subroutine destroy_workspace(cptr) bind(c, name='destroy_workspace')
 
     type(c_ptr), intent(in) :: cptr
-    type(workspace), pointer :: wkspace
+    type(wkspace), pointer :: wks
+    type(wkblob), pointer :: wkb
 
-    call c_f_pointer(cptr, wkspace)
+    call c_f_pointer(cptr, wks)
+    call c_f_pointer(wks%bptr, wkb)
 
-    deallocate(wkspace%ql)
-    deallocate(wkspace%qr)
-    deallocate(wkspace%amdq)
-    deallocate(wkspace%apdq)
-    deallocate(wkspace%amdq2)
-    deallocate(wkspace%apdq2)
-    deallocate(wkspace%wave)
-    deallocate(wkspace%s)
-    deallocate(wkspace%dtdx)
+    deallocate(wkb%ql)
+    deallocate(wkb%qr)
+    deallocate(wkb%amdq)
+    deallocate(wkb%apdq)
+    deallocate(wkb%amdq2)
+    deallocate(wkb%apdq2)
+    deallocate(wkb%wave)
+    deallocate(wkb%s)
+    deallocate(wkb%dtdx)
 
-    if (wkspace%char_decomp>1) then
-       deallocate(wkspace%evl)
-       deallocate(wkspace%evr)
+    if (wks%char_decomp>1) then
+       deallocate(wkb%evl)
+       deallocate(wkb%evr)
     endif
 
-    wkspace%work_alloc = .false.
+    wkb%allocated = .false.
 
-  end subroutine dealloc_workspace
+    ! XXX
 
-end module workspace_module
+  end subroutine destroy_workspace
+
+end module workspace
