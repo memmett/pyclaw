@@ -45,7 +45,7 @@ contains
     use workspace
     implicit none
 
-    type(c_ptr), intent(in)     :: cptr
+    type(c_ptr), intent(in), value :: cptr
     integer(c_int), intent(in), value :: num_aux, num_eqn, num_ghost, maxnx, mx, ixy
     real(c_double), intent(in), value :: dt, t
     real(c_double), intent(in)  ::  q1d(num_eqn,1-num_ghost:mx+num_ghost)
@@ -69,7 +69,6 @@ contains
        wkb%dtdx = dt/wkb%dx(ixy)
     endif
     if (wks%num_dim.gt.1) dq1d=0.d0
-
 
     select case(wks%lim_type)
        ! Non-limited reconstruction of components of q (simplest approach)

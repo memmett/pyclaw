@@ -258,7 +258,7 @@ class SharpClawSolver(Solver):
         clawparams = self.sharpclaw.params
         clawparams.num_dim       = grid.num_dim
         clawparams.num_eqn       = state.num_eqn
-        clawparams.maxnx         = max(grid.num_cells)+2*self.num_ghost
+        clawparams.maxmx         = max(grid.num_cells)+2*self.num_ghost
         clawparams.lim_type      = self.lim_type
         clawparams.weno_order    = self.weno_order
         clawparams.char_decomp   = self.char_decomp
@@ -345,8 +345,8 @@ class SharpClawSolver1D(SharpClawSolver):
         state = solution.states[0]
 
         if self.kernel_language=='Fortran':
-            import sharpclaw1
-            self.sharpclaw = sharpclaw1.sharpclaw1()
+            import libsharpclaw
+            self.sharpclaw = libsharpclaw.wrapper()
             # state.set_cparam(sharpclaw1)
             self.set_fortran_parameters(state)
 
@@ -408,7 +408,7 @@ class SharpClawSolver1D(SharpClawSolver):
         ixy=1
 
         if self.kernel_language=='Fortran':
-            dq, cfl = self.sharpclaw.flux1(q, self.auxbc, self.dt, state.t)
+            dq, cfl = self.sharpclaw.flux1(q, self.auxbc, self.dt, state.t, mx)
 
         elif self.kernel_language=='Python':
 

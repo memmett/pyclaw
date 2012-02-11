@@ -21,7 +21,7 @@ class WKSPACE(Structure):
         ('epweno', c_double) ]
 
 
-class sharpclaw1(object):
+class wrapper(object):
     """Python wrapper to the libsharpclaw1.so shared library.
 
     >>> sc = sharpclaw1()
