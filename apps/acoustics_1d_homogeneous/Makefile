@@ -1,34 +1,29 @@
-PYCLAWMAKE = $(PYCLAW)/Makefile.common
+# This Makefile...
 
-# This makefile uses the Fortran compiler and flags from PETSc. This
-# means that PETSc needs to be configured with Fortran support which
-# would otherwise not be necessary. However, using arbitrary environment
-# variables and hoping it all works out is way more fragile than I want
-# any part of.
+
+F90=gfortran
+F90FLAGS=-fPIC -pg -g -Jbuild -Ibuild
+#F90FLAGS=-fPIC -O3 -Jbuild -Ibuild
 
 SHARPCLAW = $(PYCLAW)/src/pyclaw/sharpclaw
-ONE_D_SHARPCLAW_SOURCES = $(SHARPCLAW)/workspace.f90 $(SHARPCLAW)/flux1.f90 $(SHARPCLAW)/weno.f90 $(SHARPCLAW)/reconstruct.f90 $(SHARPCLAW)/tfluct.f90 $(SHARPCLAW)/evec.f90 $(RIEMANN)/src/rp1_acoustics.f90
+vpath %.f90 . $(SHARPCLAW) $(RIEMANN)/src
 
-libsharpclaw_.so: 
-	gfortran -pg -fPIC -shared -o libsharpclaw_.so -std=f2008 $(ONE_D_SHARPCLAW_SOURCES)
 
-# FCOMPILE_SINGLE = ${FC} -c ${FC_FLAGS} ${FFLAGS} ${FCPPFLAGS}
+ONE_D_SHARPCLAW_OBJS = \
+	workspace.o weno.o reconstruct.o \
+	rp1_acoustics.o tfluct.o evec.o \
+	flux1.o 
 
-# RP_SOURCE =  $(RIEMANN)/src/rp1_acoustics.f90
 
-# F2PY = f2py
-# PYTHON = python
-# MODULE = assembly
+OBJS = $(addprefix build/, $(ONE_D_SHARPCLAW_OBJS))
 
-# all: 
-# 	make classic1.so
-# 	make sharpclaw1.so
 
-# ${MODULE}.so: ${MODULE}.pyx ${MODULE}impl.h ${MODULE}impl.c petscdadef.h
-# 	CC='${PCC}' CFLAGS='${PCC_FLAGS}' F90='${FC_LINKER}' FFLAGS='${FFLAGS}' LDFLAGS='${FC_LINKER_FLAGS}' ${PYTHON} setup.py -q build_ext --inplace
-# 	${RM} -r build ${MODULE}_wrap.c
+libsharpclaw_.so: $(OBJS)
+	$(F90) -shared -o libsharpclaw_.so $(OBJS)
 
-# include $(PYCLAWMAKE)
+build/%.o: %.f90
+	@mkdir -p build
+	$(F90) $(F90FLAGS) -c $(OUTPUT_OPTION) $<
 
-# #include ${PETSC_DIR}/conf/variables
-
+clean:
+	rm -rf libsharpclaw_.so build

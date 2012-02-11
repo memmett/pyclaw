@@ -2,7 +2,7 @@ module flux1_module
   use iso_c_binding
 contains
 
-  subroutine flux1(cptr,q1d,dq1d,aux,dt,cfl,t,ixy,num_aux,num_eqn,mx,num_ghost,maxnx) &
+  subroutine flux1(cptr,q1d,dq1d,aux,dt,cfl,t,ixy,num_aux,num_eqn,mx,num_ghost,maxmx) &
        bind(c, name='flux1')
     ! ===================================================================
     !
@@ -46,14 +46,15 @@ contains
     implicit none
 
     type(c_ptr), intent(in), value :: cptr
-    integer(c_int), intent(in), value :: num_aux, num_eqn, num_ghost, maxnx, mx, ixy
+    integer(c_int), intent(in), value :: num_aux, num_eqn, num_ghost, maxmx, mx, ixy
     real(c_double), intent(in), value :: dt, t
     real(c_double), intent(in)  ::  q1d(num_eqn,1-num_ghost:mx+num_ghost)
-    real(c_double), intent(out) :: dq1d(num_eqn,1-num_ghost:maxnx+num_ghost)
-    real(c_double), intent(in)  ::   aux(num_aux,1-num_ghost:mx+num_ghost)
-
-    real(c_double) :: auxl(num_aux,1-num_ghost:mx+num_ghost), auxr(num_aux,1-num_ghost:mx+num_ghost)
+    real(c_double), intent(in)  ::  aux(num_aux,1-num_ghost:mx+num_ghost)
+    real(c_double), intent(out) :: dq1d(num_eqn,1-num_ghost:maxmx+num_ghost)
     real(c_double), intent(out) :: cfl
+
+    real(c_double) :: auxl(num_aux,1-num_ghost:mx+num_ghost), &
+         auxr(num_aux,1-num_ghost:mx+num_ghost)
 
     type(wkspace), pointer :: wks
     type(wkblob), pointer :: wkb
@@ -78,7 +79,7 @@ contains
        !                call q2qlqr_poly(q1d,ql,qr,mx)
        !            case(1)
        !                ! wave-based unlimited reconstruction
-       !                call rp1(maxnx,num_eqn,num_waves,num_ghost,mx,&
+       !                call rp1(maxmx,num_eqn,num_waves,num_ghost,mx,&
        !                        q1d,q1d,aux,aux,wave,s,amdq,apdq,num_aux)
        !                call q2qlqr_poly_wave(q1d,ql,qr,wave,s,mx)
        !        end select
@@ -89,7 +90,7 @@ contains
           call tvd2(q1d,wkb%ql,wkb%qr,wkb%mthlim)
        case(1)
           ! wave-based second order reconstruction
-          call rp1(maxnx,num_eqn,wks%num_waves,num_ghost,mx,&
+          call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,&
                q1d,q1d,aux,aux,wkb%wave,wkb%s,wkb%amdq,wkb%apdq,num_aux)
           ! Need to write a tvd2_fwave routine
           call tvd2_wave(wks,q1d,wkb%ql,wkb%qr,wkb%wave,wkb%s,wkb%mthlim)
@@ -102,10 +103,10 @@ contains
        select case (wks%char_decomp)
        case (0)
           ! no characteristic decomposition
-          call weno_comp(wks,q1d,wkb%ql,wkb%qr,num_eqn,maxnx,num_ghost)
+          call weno_comp(wks,q1d,wkb%ql,wkb%qr,num_eqn,maxmx,num_ghost)
        case (1)
           ! wave-based reconstruction
-          call rp1(maxnx,num_eqn,wks%num_waves,num_ghost,mx,&
+          call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,&
                q1d,q1d,aux,aux,wkb%wave,wkb%s,wkb%amdq,wkb%apdq,num_aux)
           if (wks%fwave == 1) then
              call weno5_fwave(q1d,wkb%ql,wkb%qr,wkb%wave,wkb%s)
@@ -126,13 +127,13 @@ contains
           stop
        end select
     case(3)
-       call weno5(wks,q1d,wkb%ql,wkb%qr,num_eqn,maxnx,num_ghost)
+       call weno5(wks,q1d,wkb%ql,wkb%qr,num_eqn,maxmx,num_ghost)
     end select
 
 
     ! solve Riemann problem at each interface 
     ! -----------------------------------------
-    call rp1(maxnx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr,aux,aux, &
+    call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr,aux,aux, &
          wkb%wave,wkb%s,wkb%amdq,wkb%apdq,num_aux)
 
     ! compute maximum wave speed:
@@ -152,7 +153,7 @@ contains
        ! and right state qr(i), and returns a total fluctuation in wks%amdq2
        ! NOTE that here wks%amdq2 is really a total fluctuation (should be
        ! called adq); we do it this way just to avoid declaring more storage
-       call tfluct(ixy,maxnx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr, &
+       call tfluct(ixy,maxmx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr, &
             aux,aux,wkb%s,wkb%amdq2)
 
        ! Modify q using fluctuations:
@@ -189,7 +190,7 @@ contains
           enddo
        endif
 
-       call rp1(maxnx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr, &
+       call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr, &
             auxl,auxr,wkb%wave,wkb%s,wkb%amdq2,wkb%apdq2,num_aux)
 
        forall(i=1:mx, m=1:num_eqn)

@@ -198,6 +198,7 @@ class SharpClawSolver(Solver):
 
                 deltaq = self.dq(s1)
                 state.q = s2.q + 0.6 * s1.q + 0.1 * deltaq
+
             else:
                 raise Exception('Unrecognized time integrator')
         except CFLError:
@@ -258,7 +259,7 @@ class SharpClawSolver(Solver):
         clawparams = self.sharpclaw.params
         clawparams.num_dim       = grid.num_dim
         clawparams.num_eqn       = state.num_eqn
-        clawparams.maxmx         = max(grid.num_cells)+2*self.num_ghost
+        clawparams.maxmx         = max(grid.num_cells) #+2*self.num_ghost
         clawparams.lim_type      = self.lim_type
         clawparams.weno_order    = self.weno_order
         clawparams.char_decomp   = self.char_decomp
@@ -266,8 +267,11 @@ class SharpClawSolver(Solver):
         clawparams.fwave         = self.fwave
         clawparams.index_capa    = state.index_capa+1
         clawparams.num_waves     = self.num_waves
+        clawparams.num_ghost     = self.num_ghost
 
         self.sharpclaw.setup()
+
+        self.sharpclaw.set_dx(grid.delta)
 
         # for idim in range(grid.num_dim):
         #     clawparams.xlower[idim]=grid.dimensions[idim].lower
@@ -408,6 +412,7 @@ class SharpClawSolver1D(SharpClawSolver):
         ixy=1
 
         if self.kernel_language=='Fortran':
+            # XXX: ixy
             dq, cfl = self.sharpclaw.flux1(q, self.auxbc, self.dt, state.t, mx)
 
         elif self.kernel_language=='Python':

@@ -43,29 +43,34 @@ class wrapper(object):
 
         so.setup_workspace(byref(self.cptr))
 
+    def set_dx(self, dx):
+        """Set dx."""
+
+        dx = np.array(dx, order='F')
+        so.set_dx(self.cptr, dx.ctypes.data_as(self.pfloat64), c_int(dx.shape[0]))
+
     def flux1(self, q, aux, dt, t, mx):
         """Call flux1."""
 
-        dq  = np.empty(q.shape)
-        cfl = np.empty(q.shape[0])
+        dq  = np.zeros((self.params.num_eqn,self.params.maxmx+2*self.params.num_ghost),
+                       order='F')
+        cfl = c_double()
 
-        print 'flux1...'
         so.flux1(self.cptr,
                  q.ctypes.data_as(self.pfloat64), 
                  dq.ctypes.data_as(self.pfloat64),
                  aux.ctypes.data_as(self.pfloat64), 
-                 c_float(dt), 
-                 cfl.ctypes.data_as(self.pfloat64),
-                 c_float(t), 
+                 c_double(dt), 
+                 byref(cfl),
+                 c_double(t), 
                  c_int(1), 
+                 c_int(aux.shape[0]),
+                 self.params.num_eqn,
                  c_int(mx),
                  self.params.num_ghost,
                  self.params.maxmx)
-        print 'flux1... done.'
 
-        print dq
-
-        return dq, cfl
+        return dq, cfl.value
 
 
 if __name__ == '__main__':
