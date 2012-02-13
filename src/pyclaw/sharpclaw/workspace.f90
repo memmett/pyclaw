@@ -2,35 +2,46 @@ module workspace
 
   use iso_c_binding
 
+  ! workspace (c/python binding - see libsharpclaw.py)
   type, bind(c) :: wkspace
-     
-     integer(c_int) :: maxmx, num_ghost
+
+     ! problem
      integer(c_int) :: num_eqn, num_dim, num_waves, index_capa
+     
+     ! grid
+     integer(c_int) :: maxmx, num_ghost
+
+     ! reconstruction/limiters
      integer(c_int) :: char_decomp, lim_type, multid_recon, weno_order
      integer(c_int) :: fwave, tfluct_solver
-
      real(c_double) :: epweno = 1.e-36
 
+     ! pointer to workspace 'blob'
      type(c_ptr) :: bptr
 
   end type wkspace
 
+  ! workspace blob
   type :: wkblob
      
      logical :: allocated = .false.
 
-     real(c_double), pointer :: ql(:,:), qr(:,:), dtdx(:)
-     real(c_double), pointer :: evl(:,:,:), evr(:,:,:)
-     real(c_double), pointer :: amdq(:,:), apdq(:,:), amdq2(:,:), apdq2(:,:)
-     real(c_double), pointer :: wave(:,:,:), s(:,:)
-
+     ! problem
      real(c_double), pointer :: xlower(:), xupper(:), dx(:)
+
+     ! reconstruction/limiters
      integer(c_int), pointer :: mthlim(:)
 
-     ! reconstruction
+     real(c_double), pointer :: ql(:,:), qr(:,:), dtdx(:)
+     real(c_double), pointer :: evl(:,:,:), evr(:,:,:)
+
      real(c_double), pointer :: dq1m(:)
      real(c_double), pointer :: uu(:,:), dq(:,:)
      real(c_double), pointer :: uh(:,:,:), gg(:,:), hh(:,:), u(:,:,:)
+
+     ! waves
+     real(c_double), pointer :: amdq(:,:), apdq(:,:), amdq2(:,:), apdq2(:,:)
+     real(c_double), pointer :: wave(:,:,:), s(:,:)
 
   end type wkblob
 
