@@ -6,19 +6,20 @@ so = CDLL('./libsharpclaw_.so')
 
 class WKSPACE(Structure):
     _fields_ = [
-        ('maxmx', c_int),
-        ('num_ghost', c_int),
         ('num_eqn', c_int),
         ('num_dim', c_int),
         ('num_waves', c_int), 
         ('index_capa', c_int),
+        ('maxmx', c_int),
+        ('num_ghost', c_int),
         ('char_decomp', c_int),
         ('lim_type', c_int),
         ('multid_recon', c_int), 
         ('weno_order', c_int),
         ('fwave', c_int),
         ('tfluct_solver', c_int),
-        ('epweno', c_double) ]
+        ('epweno', c_double),
+        ('bptr', c_void_p) ]
 
 
 class wrapper(object):
