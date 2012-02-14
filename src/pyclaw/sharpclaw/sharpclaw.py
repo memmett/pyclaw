@@ -351,7 +351,7 @@ class SharpClawSolver1D(SharpClawSolver):
         if self.kernel_language=='Fortran':
             import libsharpclaw
             self.sharpclaw = libsharpclaw.wrapper()
-            # state.set_cparam(sharpclaw1)
+            self.sharpclaw.set_problem_data(state.problem_data)
             self.set_fortran_parameters(state)
 
         self.allocate_bc_arrays(state)

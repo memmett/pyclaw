@@ -2,7 +2,7 @@ module flux1_module
   use iso_c_binding
 contains
 
-  subroutine flux1(cptr,q1d,dq1d,aux,dt,cfl,t,ixy,num_aux,num_eqn,mx,num_ghost,maxmx) &
+  subroutine flux1(cptr,q1d,dq1d,dt,cfl,t,ixy,num_eqn,mx,num_ghost,maxmx,pdata,num_pdata) &
        bind(c, name='flux1')
     ! ===================================================================
     !
@@ -45,16 +45,12 @@ contains
     use workspace
     implicit none
 
-    type(c_ptr), intent(in), value :: cptr
-    integer(c_int), intent(in), value :: num_aux, num_eqn, num_ghost, maxmx, mx, ixy
+    type(c_ptr), intent(in), value :: cptr, pdata
+    integer(c_int), intent(in), value :: num_eqn, num_ghost, maxmx, mx, ixy, num_pdata
     real(c_double), intent(in), value :: dt, t
     real(c_double), intent(in)  ::  q1d(num_eqn,1-num_ghost:mx+num_ghost)
-    real(c_double), intent(in)  ::  aux(num_aux,1-num_ghost:mx+num_ghost)
     real(c_double), intent(out) :: dq1d(num_eqn,1-num_ghost:maxmx+num_ghost)
     real(c_double), intent(out) :: cfl
-
-    real(c_double) :: auxl(num_aux,1-num_ghost:mx+num_ghost), &
-         auxr(num_aux,1-num_ghost:mx+num_ghost)
 
     type(wkspace), pointer :: wks
     type(wkblob), pointer :: wkb
@@ -65,7 +61,7 @@ contains
     call c_f_pointer(wks%bptr, wkb)
 
     if (wks%index_capa.gt.0) then
-       wkb%dtdx = dt / (wkb%dx(ixy)*aux(wks%index_capa,:))
+       ! wkb%dtdx = dt / (wkb%dx(ixy)*aux(wks%index_capa,:))
     else
        wkb%dtdx = dt/wkb%dx(ixy)
     endif
@@ -90,14 +86,14 @@ contains
           call tvd2(q1d,wkb%ql,wkb%qr,wkb%mthlim)
        case(1)
           ! wave-based second order reconstruction
-          call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,&
-               q1d,q1d,aux,aux,wkb%wave,wkb%s,wkb%amdq,wkb%apdq,num_aux)
+          ! call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,&
+          !      q1d,q1d,aux,aux,wkb%wave,wkb%s,wkb%amdq,wkb%apdq,num_aux)
           ! Need to write a tvd2_fwave routine
           call tvd2_wave(wks,q1d,wkb%ql,wkb%qr,wkb%wave,wkb%s,wkb%mthlim)
        case(2)
           ! characteristic-wise second order reconstruction
-          call evec(mx,num_eqn,num_ghost,mx,q1d,aux,aux,wkb%evl,wkb%evr)
-          call tvd2_char(wks,q1d,wkb%ql,wkb%qr,wkb%mthlim,wkb%evl,wkb%evr)
+          ! call evec(mx,num_eqn,num_ghost,mx,q1d,aux,aux,wkb%evl,wkb%evr)
+          ! call tvd2_char(wks,q1d,wkb%ql,wkb%qr,wkb%mthlim,wkb%evl,wkb%evr)
        end select
     case(2)
        select case (wks%char_decomp)
@@ -106,8 +102,8 @@ contains
           call weno_comp(wks,q1d,wkb%ql,wkb%qr,num_eqn,maxmx,num_ghost)
        case (1)
           ! wave-based reconstruction
-          call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,&
-               q1d,q1d,aux,aux,wkb%wave,wkb%s,wkb%amdq,wkb%apdq,num_aux)
+          ! call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,&
+          !      q1d,q1d,aux,aux,wkb%wave,wkb%s,wkb%amdq,wkb%apdq,num_aux)
           if (wks%fwave == 1) then
              call weno5_fwave(q1d,wkb%ql,wkb%qr,wkb%wave,wkb%s)
           else
@@ -115,12 +111,12 @@ contains
           endif
        case (2)
           ! characteristic-wise reconstruction
-          call evec(mx,num_eqn,num_ghost,mx,q1d,aux,aux,wkb%evl,wkb%evr)
-          call weno5_char(wks,q1d,wkb%ql,wkb%qr,wkb%evl,wkb%evr)
+          ! call evec(mx,num_eqn,num_ghost,mx,q1d,aux,aux,wkb%evl,wkb%evr)
+          ! call weno5_char(wks,q1d,wkb%ql,wkb%qr,wkb%evl,wkb%evr)
        case (3)
           ! transmission-based reconstruction
-          call evec(mx,num_eqn,num_ghost,mx,q1d,aux,aux,wkb%evl,wkb%evr)
-          call weno5_trans(wks,q1d,wkb%ql,wkb%qr,wkb%evl,wkb%evr)
+          ! call evec(mx,num_eqn,num_ghost,mx,q1d,aux,aux,wkb%evl,wkb%evr)
+          ! call weno5_trans(wks,q1d,wkb%ql,wkb%qr,wkb%evl,wkb%evr)
        case default
           write(*,*) 'ERROR: Unrecognized characteristic decomposition option'
           write(*,*) 'You should set 0<=char_decomp<=3'
@@ -133,8 +129,8 @@ contains
 
     ! solve Riemann problem at each interface 
     ! -----------------------------------------
-    call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr,aux,aux, &
-         wkb%wave,wkb%s,wkb%amdq,wkb%apdq,num_aux)
+    call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr,&
+         wkb%wave,wkb%s,wkb%amdq,wkb%apdq,pdata,num_pdata)
 
     ! compute maximum wave speed:
     cfl = 0.d0
@@ -153,8 +149,8 @@ contains
        ! and right state qr(i), and returns a total fluctuation in wks%amdq2
        ! NOTE that here wks%amdq2 is really a total fluctuation (should be
        ! called adq); we do it this way just to avoid declaring more storage
-       call tfluct(ixy,maxmx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr, &
-            aux,aux,wkb%s,wkb%amdq2)
+       ! call tfluct(ixy,maxmx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr, &
+       !      aux,aux,wkb%s,wkb%amdq2)
 
        ! Modify q using fluctuations:
        ! Note this may not correspond to a conservative flux-differencing
@@ -181,17 +177,17 @@ contains
           enddo
        enddo
 
-       if (num_aux .gt. 0) then
-          do i = 1-num_ghost+1,mx+num_ghost
-             do m = 1, num_aux
-                auxr(m,i-1) = aux(m,i) !aux is not patchdat type
-                auxl(m,i  ) = aux(m,i) !aux is not patchdat type
-             enddo
-          enddo
-       endif
+       ! if (num_aux .gt. 0) then
+       !    do i = 1-num_ghost+1,mx+num_ghost
+       !       do m = 1, num_aux
+       !          auxr(m,i-1) = aux(m,i) !aux is not patchdat type
+       !          auxl(m,i  ) = aux(m,i) !aux is not patchdat type
+       !       enddo
+       !    enddo
+       ! endif
 
        call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr, &
-            auxl,auxr,wkb%wave,wkb%s,wkb%amdq2,wkb%apdq2,num_aux)
+            wkb%wave,wkb%s,wkb%amdq2,wkb%apdq2,pdata,num_pdata)
 
        forall(i=1:mx, m=1:num_eqn)
           dq1d(m,i) = dq1d(m,i)-wkb%dtdx(i)*(wkb%amdq(m,i+1)+ &

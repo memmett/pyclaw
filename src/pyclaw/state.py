@@ -151,27 +151,27 @@ class State(object):
             valid = False
         return valid
  
-    def set_cparam(self,fortran_module):
-        """
-        Set the variables in fortran_module.cparam to the corresponding values in
-        patch.problem_data.  This is the mechanism for passing scalar variables to the
-        Fortran Riemann solvers; cparam must be defined as a common block in the
-        Riemann solver.
+    # def set_cparam(self,fortran_module):
+    #     """
+    #     Set the variables in fortran_module.cparam to the corresponding values in
+    #     patch.problem_data.  This is the mechanism for passing scalar variables to the
+    #     Fortran Riemann solvers; cparam must be defined as a common block in the
+    #     Riemann solver.
 
-        This function should be called from solver.setup().  This seems like a fragile
-        interdependency between solver and patch; perhaps problem_data should belong
-        to solver instead of state.
+    #     This function should be called from solver.setup().  This seems like a fragile
+    #     interdependency between solver and patch; perhaps problem_data should belong
+    #     to solver instead of state.
 
-        This function also checks that the set of variables defined in cparam 
-        all appear in problem_data.
-        """
-        if hasattr(fortran_module,'cparam'):
-            if not set(dir(fortran_module.cparam)) <= set(self.problem_data.keys()):
-                raise Exception("""Some required value(s) in the cparam common 
-                                   block in the Riemann solver have not been 
-                                   set in problem_data.""")
-            for global_var_name,global_var_value in self.problem_data.iteritems(): 
-                setattr(fortran_module.cparam,global_var_name,global_var_value)
+    #     This function also checks that the set of variables defined in cparam 
+    #     all appear in problem_data.
+    #     """
+    #     if hasattr(fortran_module,'cparam'):
+    #         if not set(dir(fortran_module.cparam)) <= set(self.problem_data.keys()):
+    #             raise Exception("""Some required value(s) in the cparam common 
+    #                                block in the Riemann solver have not been 
+    #                                set in problem_data.""")
+    #         for global_var_name,global_var_value in self.problem_data.iteritems(): 
+    #             setattr(fortran_module.cparam,global_var_name,global_var_value)
 
     def set_num_ghost(self,num_ghost):
         """
