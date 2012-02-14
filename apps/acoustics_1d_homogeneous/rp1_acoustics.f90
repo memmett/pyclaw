@@ -38,7 +38,6 @@ subroutine rp1(maxmx,num_eqn,num_waves,num_ghost,mx,ql,qr,&
   
   integer :: i, m
   double precision :: delta(2), a1, a2, zz, cc
-  double precision, pointer :: foo
 
   call get_problem_data_scalar(pdata, num_pdata, "zz", zz)
   call get_problem_data_scalar(pdata, num_pdata, "cc", cc)
