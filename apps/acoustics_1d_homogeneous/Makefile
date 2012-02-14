@@ -6,7 +6,7 @@ F90FLAGS=-fPIC -pg -g -Jbuild -Ibuild
 #F90FLAGS=-fPIC -O3 -Jbuild -Ibuild
 
 SHARPCLAW = $(PYCLAW)/src/pyclaw/sharpclaw
-vpath %.f90 . $(SHARPCLAW) $(RIEMANN)/src
+vpath %.f90 . $(SHARPCLAW)# $(RIEMANN)/src
 
 
 ONE_D_SHARPCLAW_OBJS = \
