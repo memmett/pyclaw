@@ -25,8 +25,7 @@ class WKSPACE(Structure):
 class PROBLEMDATA(Structure):
     _fields_ = [
         ('name', c_char_p),
-        ('len', c_int),
-        ('data', POINTER(c_double)) ]
+        ('data', POINTER(c_double)) ] 
 
 
 class wrapper(object):
@@ -65,19 +64,25 @@ class wrapper(object):
 
     def set_problem_data(self, problem_data):
 
-        pdata = (len(problem_data) * PROBLEMDATA)()
-        for i, key in enumerate(problem_data):
-            pdata[i].name = c_char_p(key)
-            pdata[i].len = c_int(len(key))
-            value = problem_data[key]
-            if isinstance(value, float):
-                d = c_double(value)
-                pdata[i].data = pointer(d)
+        num_pdata = c_int()
+        pdata = POINTER(PROBLEMDATA)()
+
+        so.rp_register(byref(pdata), byref(num_pdata))
+
+        for i in range(num_pdata.value):
+            key = str(pdata[i].name)
+            if key:
+                value = problem_data[key]
+                if isinstance(value, float):
+                    d = c_double(value)
+                    pdata[i].data = pointer(d)
+                else:
+                    raise TypeError("Type of problem data '%s' not supported yet." % key)
             else:
-                raise TypeError("Type of problem data '%s' not supported yet.")
+                raise ValueError("Problem data '%s' not found." % key)
 
         self.pdata = pdata
-        self.num_pdata = len(problem_data)
+        self.num_pdata = num_pdata
 
 
     def flux1(self, q, aux, dt, t, mx):
@@ -98,9 +103,13 @@ class wrapper(object):
                  c_int(mx),
                  self.params.num_ghost,
                  self.params.maxmx,
-                 self.pdata, c_int(self.num_pdata))
+                 self.pdata, self.num_pdata)
 
         return dq, cfl.value
+
+    def teardown(self):
+        """XXX"""
+        pass
 
 
 if __name__ == '__main__':

@@ -2,11 +2,8 @@ module workspace
 
   use iso_c_binding
 
-
-
   type, bind(c) :: problemdata
      type(c_ptr) :: name
-     integer(c_int) :: len
      type(c_ptr) :: data
   end type problemdata
 
@@ -55,34 +52,34 @@ module workspace
 
 contains
 
-  subroutine get_problem_data_scalar(pdata, num_pdata, name, scalar) 
-    implicit none
+  ! subroutine get_problem_data_scalar(pdata, num_pdata, name, scalar) 
+  !   implicit none
 
-    type(c_ptr), intent(in)      :: pdata
-    integer(c_int), intent(in)   :: num_pdata
-    character(len=*), intent(in) :: name
-    real(c_double), intent(out)  :: scalar
+  !   type(c_ptr), intent(in)      :: pdata
+  !   integer(c_int), intent(in)   :: num_pdata
+  !   character(len=*), intent(in) :: name
+  !   real(c_double), intent(out)  :: scalar
 
-    integer :: i
-    type(problemdata), pointer :: pd(:)
-    character(len=32), pointer :: pdname ! XXX
-    real(c_double), pointer    :: data
+  !   integer :: i
+  !   type(problemdata), pointer :: pd(:)
+  !   character(len=32), pointer :: pdname ! XXX
+  !   real(c_double), pointer    :: data
 
-    call c_f_pointer(pdata, pd, [num_pdata])
+  !   call c_f_pointer(pdata, pd, [num_pdata])
 
-    do i = 1, num_pdata
-       call c_f_pointer(pd(i)%name, pdname, [pd(i)%len])
+  !   do i = 1, num_pdata
+  !      call c_f_pointer(pd(i)%name, pdname, [pd(i)%len])
 
-       if (name == pdname(:pd(i)%len)) then
-          call c_f_pointer(pd(i)%data, data)
-          scalar = data
-          return
-       end if
-    end do
+  !      if (name == pdname(:pd(i)%len)) then
+  !         call c_f_pointer(pd(i)%data, data)
+  !         scalar = data
+  !         return
+  !      end if
+  !   end do
 
-    stop 'Unable to find problem data.'
+  !   stop 'Unable to find problem data.'
 
-  end subroutine get_problem_data_scalar
+  ! end subroutine get_problem_data_scalar
 
   subroutine create_workspace(cptr) bind(c, name='create_workspace')
     implicit none

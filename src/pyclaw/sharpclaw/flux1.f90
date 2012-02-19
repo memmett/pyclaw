@@ -43,6 +43,7 @@ contains
 
     use reconstruct
     use workspace
+    use rp_acoustics
     implicit none
 
     type(c_ptr), intent(in), value :: cptr, pdata

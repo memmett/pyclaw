@@ -362,13 +362,7 @@ class SharpClawSolver1D(SharpClawSolver):
         Also delete Fortran objects, which otherwise tend to persist in Python sessions.
         """
         if self.kernel_language=='Fortran':
-            from sharpclaw1 import clawparams, workspace, reconstruct
-            clawparams.dealloc_clawparams()
-            workspace.dealloc_workspace(self.char_decomp)
-            reconstruct.dealloc_recon_workspace(clawparams.lim_type,clawparams.char_decomp)
-            import sharpclaw1
-            print 'deleting sharpclaw1 object'
-            del sharpclaw1, clawparams, workspace, reconstruct
+            self.sharpclaw.teardown()
 
 
     def dq_hyperbolic(self,state):
