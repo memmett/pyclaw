@@ -1,36 +1,42 @@
 module rp_acoustics
+  use iso_c_binding
+  
+  type :: acoustics
+     real(c_double) :: z, c
+  end type acoustics
+
 contains
 
   ! Register this Riemann solver
   !
-  ! Registers scalar problem data "zz" and "cc".
-  subroutine rp_register(pdata_ptr, num_pdata) bind(c, name='rp_register')
+  ! Requests scalar problem data "zz" and "cc".
+  subroutine rp_register(rpp) bind(c, name='rp_register')
     use workspace
     implicit none
-    type(c_ptr), intent(out) :: pdata_ptr
-    integer(c_int), intent(out) :: num_pdata
+    type(c_ptr), intent(in), value :: rpp
+    type(acoustics), pointer :: ac
 
-    type(problemdata), pointer :: pdata(:)
-    character(len=12,kind=c_char), pointer :: names(:)
-    real(c_double), pointer :: zz, cc
+    allocate(ac)
+    ac%z = 0.0d0
+    ac%c = 0.0d0
 
-    allocate(pdata(2))
-    allocate(names(2))
-    allocate(zz,cc)
-
-    names(1) = "zz" // c_null_char
-    pdata(1)%name = c_loc(names(1)(1:1))
-    pdata(1)%data = c_loc(zz)
-
-    names(2) = "cc" // c_null_char
-    pdata(2)%name = c_loc(names(2)(1:1))
-    pdata(2)%data = c_loc(cc)
-
-    num_pdata = 2
-    pdata_ptr = c_loc(pdata(1))
-
+    call rp_set_context(rpp, c_loc(ac))
+    call rp_options_real(rpp, "zz", ac%z)
+    call rp_options_real(rpp, "cc", ac%c)
   end subroutine rp_register
 
+  subroutine rp_teardown(rpp) bind(c, name='rp_teardown')
+    use workspace
+    implicit none
+    type(c_ptr), intent(in), value :: rpp
+    type(rp), pointer :: rpi
+    type(acoustics), pointer :: ac
+
+    call c_f_pointer(rpp, rpi)
+    call c_f_pointer(rpi%context, ac)
+
+    deallocate(ac)
+  end subroutine rp_teardown
 
   ! Riemann solver for the acoustics equations in 1d
   !
@@ -52,12 +58,12 @@ contains
   !
   ! From the basic clawpack routines, this routine is called with ql = qr
   subroutine rp1(maxmx,num_eqn,num_waves,num_ghost,mx,ql,qr,&
-       wave,s,amdq,apdq,pdata,num_pdata)
+       wave,s,amdq,apdq,context)
     use iso_c_binding
     use workspace
     implicit none
 
-    integer, intent(in) :: maxmx, mx, num_eqn, num_waves, num_ghost, num_pdata
+    integer, intent(in) :: maxmx, mx, num_eqn, num_waves, num_ghost
     double precision, intent(out) :: &
          s(num_waves, 1-num_ghost:mx+num_ghost), &
          wave(num_eqn, num_waves, 1-num_ghost:mx+num_ghost), &
@@ -66,16 +72,13 @@ contains
     double precision, intent(in) :: &
          ql(num_eqn, 1-num_ghost:mx+num_ghost), &
          qr(num_eqn, 1-num_ghost:mx+num_ghost)
-    type(c_ptr), intent(in) :: pdata
-    type(problemdata), pointer :: pd(:)
+    type(c_ptr), intent(in), value :: context
+    type(acoustics), pointer :: ac
 
     integer :: i, m
     double precision :: delta(2), a1, a2
-    double precision, pointer :: zz, cc
 
-    call c_f_pointer(pdata, pd, [num_pdata])
-    call c_f_pointer(pd(1)%data, zz)
-    call c_f_pointer(pd(2)%data, cc)
+    call c_f_pointer(context, ac)
 
     ! split the jump in q at each interface into waves
 
@@ -83,18 +86,18 @@ contains
     do i = 2-num_ghost, mx+num_ghost
        delta(1) = ql(1,i) - qr(1,i-1)
        delta(2) = ql(2,i) - qr(2,i-1)
-       a1 = (-delta(1) + zz*delta(2)) / (2.d0*zz)
-       a2 =  (delta(1) + zz*delta(2)) / (2.d0*zz)
+       a1 = (-delta(1) + ac%z*delta(2)) / (2.d0*ac%z)
+       a2 =  (delta(1) + ac%z*delta(2)) / (2.d0*ac%z)
 
        ! compute the waves
 
-       wave(1,1,i) = -a1*zz
+       wave(1,1,i) = -a1*ac%z
        wave(2,1,i) = a1
-       s(1,i) = -cc
+       s(1,i) = -ac%c
 
-       wave(1,2,i) = a2*zz
+       wave(1,2,i) = a2*ac%z
        wave(2,2,i) = a2
-       s(2,i) = cc
+       s(2,i) = ac%c
 
     end do
 

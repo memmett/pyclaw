@@ -2,10 +2,17 @@ module workspace
 
   use iso_c_binding
 
-  type, bind(c) :: problemdata
-     type(c_ptr) :: name
-     type(c_ptr) :: data
-  end type problemdata
+  ! problem data
+  type, bind(c) :: problem_data
+     type(c_ptr) :: name, data
+  end type problem_data
+
+  ! riemann problem
+  type, bind(c) :: rp
+     type(c_ptr) :: context
+     integer(c_int) :: num_pdata
+     type(c_ptr) :: pdata(32)
+  end type rp
 
   ! workspace (c/python binding - see libsharpclaw.py)
   type, bind(c) :: wkspace
@@ -52,34 +59,55 @@ module workspace
 
 contains
 
-  ! subroutine get_problem_data_scalar(pdata, num_pdata, name, scalar) 
-  !   implicit none
+  subroutine rp_set_context(rpp, context)
+    type(c_ptr), intent(in) :: rpp
+    type(c_ptr), intent(in) :: context
 
-  !   type(c_ptr), intent(in)      :: pdata
-  !   integer(c_int), intent(in)   :: num_pdata
-  !   character(len=*), intent(in) :: name
-  !   real(c_double), intent(out)  :: scalar
+    type(rp), pointer :: rpi
 
-  !   integer :: i
-  !   type(problemdata), pointer :: pd(:)
-  !   character(len=32), pointer :: pdname ! XXX
-  !   real(c_double), pointer    :: data
+    call c_f_pointer(rpp, rpi)
+    rpi%context = context
+  end subroutine rp_set_context
 
-  !   call c_f_pointer(pdata, pd, [num_pdata])
+  subroutine rp_options_real(rpp, name, data)
+    implicit none
+    type(c_ptr), intent(in) :: rpp
+    character(len=*,kind=c_char), intent(in) :: name
+    real(c_double), intent(in), target :: data
 
-  !   do i = 1, num_pdata
-  !      call c_f_pointer(pd(i)%name, pdname, [pd(i)%len])
+    type(rp), pointer :: rpi
+    type(problem_data), pointer :: pd
+    character(len=32,kind=c_char), pointer :: cname
 
-  !      if (name == pdname(:pd(i)%len)) then
-  !         call c_f_pointer(pd(i)%data, data)
-  !         scalar = data
-  !         return
-  !      end if
-  !   end do
+    allocate(cname)
+    cname = name // c_null_char
 
-  !   stop 'Unable to find problem data.'
+    allocate(pd)
+    pd%name = c_loc(cname(1:1))
+    pd%data = c_loc(data)
 
-  ! end subroutine get_problem_data_scalar
+    call c_f_pointer(rpp, rpi)
+    rpi%num_pdata = rpi%num_pdata + 1
+    rpi%pdata(rpi%num_pdata) = c_loc(pd)
+  end subroutine rp_options_real
+
+  subroutine rp_options_teardown(rpp) bind(c, name='rp_options_teardown')
+    implicit none
+    type(c_ptr), intent(in), value :: rpp
+    type(rp), pointer :: rpi
+    character(len=32,kind=c_char), pointer :: cname
+    type(problem_data), pointer :: pdata
+    integer :: i
+
+    call c_f_pointer(rpp, rpi)
+
+    do i = 1, rpi%num_pdata
+       call c_f_pointer(rpi%pdata(i), pdata)
+       call c_f_pointer(pdata%name, cname)
+       deallocate(cname)
+       deallocate(pdata)
+    end do
+  end subroutine rp_options_teardown
 
   subroutine create_workspace(cptr) bind(c, name='create_workspace')
     implicit none

@@ -27,6 +27,12 @@ class PROBLEMDATA(Structure):
         ('name', c_char_p),
         ('data', POINTER(c_double)) ] 
 
+class RP(Structure):
+    _fields_ = [
+        ('context', c_void_p),
+        ('num_pdata', c_int),
+        ('pdata', POINTER(PROBLEMDATA)*32) ]
+
 
 class wrapper(object):
     """Python wrapper to the libsharpclaw1.so shared library.
@@ -39,7 +45,7 @@ class wrapper(object):
     def __init__(self):
         """Create a new workspace."""
 
-        self.pdata = None
+        self.rp = None
         self.pfloat64 = POINTER(c_double)
 
         self.cptr = c_void_p()
@@ -64,25 +70,24 @@ class wrapper(object):
 
     def set_problem_data(self, problem_data):
 
-        num_pdata = c_int()
-        pdata = POINTER(PROBLEMDATA)()
+        rp = RP()
+        rp.num_pdata = 0
 
-        so.rp_register(byref(pdata), byref(num_pdata))
+        so.rp_register(byref(rp))
 
-        for i in range(num_pdata.value):
-            key = str(pdata[i].name)
+        for i in range(rp.num_pdata):
+            key = str(rp.pdata[i].contents.name)
             if key:
                 value = problem_data[key]
                 if isinstance(value, float):
                     d = c_double(value)
-                    pdata[i].data = pointer(d)
+                    rp.pdata[i].contents.data.contents.value = value
                 else:
                     raise TypeError("Type of problem data '%s' not supported yet." % key)
             else:
                 raise ValueError("Problem data '%s' not found." % key)
 
-        self.pdata = pdata
-        self.num_pdata = num_pdata
+        self.rp = rp
 
 
     def flux1(self, q, aux, dt, t, mx):
@@ -103,13 +108,16 @@ class wrapper(object):
                  c_int(mx),
                  self.params.num_ghost,
                  self.params.maxmx,
-                 self.pdata, self.num_pdata)
+                 byref(self.rp))
 
         return dq, cfl.value
 
     def teardown(self):
         """XXX"""
-        pass
+        so.rp_options_teardown(byref(self.rp))
+        so.rp_teardown(byref(self.rp))
+
+        self.rp = None
 
 
 if __name__ == '__main__':

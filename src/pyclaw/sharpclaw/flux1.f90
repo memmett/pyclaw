@@ -2,7 +2,7 @@ module flux1_module
   use iso_c_binding
 contains
 
-  subroutine flux1(cptr,q1d,dq1d,dt,cfl,t,ixy,num_eqn,mx,num_ghost,maxmx,pdata,num_pdata) &
+  subroutine flux1(cptr,q1d,dq1d,dt,cfl,t,ixy,num_eqn,mx,num_ghost,maxmx,rpp) &
        bind(c, name='flux1')
     ! ===================================================================
     !
@@ -46,8 +46,8 @@ contains
     use rp_acoustics
     implicit none
 
-    type(c_ptr), intent(in), value :: cptr, pdata
-    integer(c_int), intent(in), value :: num_eqn, num_ghost, maxmx, mx, ixy, num_pdata
+    type(c_ptr), intent(in), value :: cptr, rpp
+    integer(c_int), intent(in), value :: num_eqn, num_ghost, maxmx, mx, ixy
     real(c_double), intent(in), value :: dt, t
     real(c_double), intent(in)  ::  q1d(num_eqn,1-num_ghost:mx+num_ghost)
     real(c_double), intent(out) :: dq1d(num_eqn,1-num_ghost:maxmx+num_ghost)
@@ -55,11 +55,13 @@ contains
 
     type(wkspace), pointer :: wks
     type(wkblob), pointer :: wkb
+    type(rp), pointer :: rpi
 
     integer :: i, m, mw
 
     call c_f_pointer(cptr, wks)
     call c_f_pointer(wks%bptr, wkb)
+    call c_f_pointer(rpp, rpi)
 
     if (wks%index_capa.gt.0) then
        ! wkb%dtdx = dt / (wkb%dx(ixy)*aux(wks%index_capa,:))
@@ -131,7 +133,7 @@ contains
     ! solve Riemann problem at each interface 
     ! -----------------------------------------
     call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr,&
-         wkb%wave,wkb%s,wkb%amdq,wkb%apdq,pdata,num_pdata)
+         wkb%wave,wkb%s,wkb%amdq,wkb%apdq,rpi%context)
 
     ! compute maximum wave speed:
     cfl = 0.d0
@@ -188,7 +190,7 @@ contains
        ! endif
 
        call rp1(maxmx,num_eqn,wks%num_waves,num_ghost,mx,wkb%ql,wkb%qr, &
-            wkb%wave,wkb%s,wkb%amdq2,wkb%apdq2,pdata,num_pdata)
+            wkb%wave,wkb%s,wkb%amdq2,wkb%apdq2,rpi%context)
 
        forall(i=1:mx, m=1:num_eqn)
           dq1d(m,i) = dq1d(m,i)-wkb%dtdx(i)*(wkb%amdq(m,i+1)+ &
