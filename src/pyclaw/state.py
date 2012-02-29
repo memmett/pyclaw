@@ -161,8 +161,6 @@ class State(object):
         import geometry
         import pyweno.nonuniform
 
-        # XXX: add check to is_valid?
-
         # get weno order
         k = (weno_order+1)/2
 
@@ -180,10 +178,6 @@ class State(object):
         self.weno_varpi  = np.asfortranarray(v)
         self.weno_beta   = np.asfortranarray(b)
         self.weno_mapped = True
-
-        print c
-        print v
-        print b
 
 
     def set_cparam(self,fortran_module):

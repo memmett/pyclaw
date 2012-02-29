@@ -6,20 +6,10 @@ import numpy as np
 nx = 40
 
 def mapc2p(patch, x):
-
-    print 'x', x
-
-    dx = 1.0/nx
-
     m = x
-    m[5] -= 0.1*dx
-    m[6] += 0.1*dx
-    m[7] -= 0.1*dx
-    m[8] += 0.1*dx
-    m[9] -= 0.1*dx
-    m[10] += 0.1*dx
 
-    # print 'm', m
+    idx = (x >= 0.2)*(x <= 0.5)
+    m[idx] = x[idx] + 0.008*np.sin(2*np.pi*(x[idx]-0.2)/0.3)
 
     return m
 
@@ -93,7 +83,6 @@ def acoustics(use_petsc=False,
             state.precompute_mapped_weno(solver.weno_order)
             print 'precomputing weno coeffs... done.'
         area = state.grid.p_edges[0][1:] - state.grid.p_edges[0][:-1]
-        print area
         state.aux = np.zeros((1,nx))
         state.aux[0,:] = area/dx
         state.index_capa = 0
@@ -117,17 +106,19 @@ def acoustics(use_petsc=False,
     beta=100; gamma=0; x0=0.75
     if mapped:
         from scipy.integrate import quadrature
-        q0 = lambda xc: exp(-beta * (xc-x0)**2) * cos(gamma * (xc - x0))
+        q0 = lambda z: exp(-beta * (z-x0)**2) * cos(gamma * (z - x0))
         x = state.grid.p_edges[0]
+        print x
         for i in range(state.q.shape[1]):
             a = x[i]
             b = x[i+1]
-            print a, b, b-a
             q, e = quadrature(q0, a, b)
             state.q[0,i] = q/(b-a)
     else:
         state.q[0,:] = exp(-beta * (xc-x0)**2) * cos(gamma * (xc - x0))
     q1 = np.array(state.q[0,:])
+
+    print state.q[0,:]
 
     state.q[1,:] = 0.
 
