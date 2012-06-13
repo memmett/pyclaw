@@ -49,12 +49,17 @@ def acoustics(use_petsc=False,
     solver.kernel_language=kernel_language
     from clawpack.riemann import rp_acoustics
     solver.num_waves=rp_acoustics.num_waves
+<<<<<<< HEAD
 
     if kernel_language=='Python': 
         solver.rp = rp_acoustics.rp_acoustics_1d
     else:
         from clawpack.riemann import rp1_acoustics
         solver.rp = rp1_acoustics
+=======
+    if kernel_language=='Python':
+        solver.rp = rp_acoustics.rp_acoustics_1d
+>>>>>>> 1e1889cd8ec26a6acfe5ff98acc05e4c9f828af5
 
     solver.limiters = pyclaw.limiters.tvd.MC
 
@@ -122,8 +127,11 @@ def acoustics(use_petsc=False,
 
     state.q[1,:] = 0.
 
+<<<<<<< HEAD
     solver.dt_initial=domain.grid.delta[0]/state.problem_data['cc']*0.1
 
+=======
+>>>>>>> 1e1889cd8ec26a6acfe5ff98acc05e4c9f828af5
     #========================================================================
     # Set up the controller object
     #========================================================================

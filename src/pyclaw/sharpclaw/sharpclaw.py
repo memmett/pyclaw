@@ -141,6 +141,7 @@ class SharpClawSolver(Solver):
         self._rk_stages = None
 
         # Call general initialization function
+<<<<<<< HEAD
         super(SharpClawSolver,self).__init__(riemann_solver,claw_package)
         
     def setup(self,solution):
@@ -172,6 +173,9 @@ class SharpClawSolver(Solver):
 
         self._is_set_up = True
 
+=======
+        super(SharpClawSolver,self).__init__()
+>>>>>>> 1e1889cd8ec26a6acfe5ff98acc05e4c9f828af5
 
     # ========== Time stepping routines ======================================
     def step(self,solution):
@@ -348,9 +352,39 @@ class SharpClawSolver1D(SharpClawSolver):
     def __init__(self,riemann_solver=None,claw_package=None):
         r"""
         See :class:`SharpClawSolver1D` for more info.
+<<<<<<< HEAD
         """
         self.num_dim = 1
         super(SharpClawSolver1D,self).__init__(riemann_solver,claw_package)
+=======
+        """
+        self.num_dim = 1
+        super(SharpClawSolver1D,self).__init__()
+
+
+    def setup(self,solution):
+        """
+        Allocate RK stage arrays and fortran routine work arrays.
+        """
+        self.num_ghost = (self.weno_order+1)/2
+
+        # This is a hack to deal with the fact that petsc4py
+        # doesn't allow us to change the stencil_width (num_ghost)
+        state = solution.state
+        state.set_num_ghost(self.num_ghost)
+        # End hack
+
+        self.allocate_rk_stages(solution)
+        self.set_mthlim()
+
+        state = solution.states[0]
+
+        if self.kernel_language=='Fortran':
+            from sharpclaw1 import clawparams, workspace, reconstruct
+            import sharpclaw1
+            state.set_cparam(sharpclaw1)
+            self.set_fortran_parameters(state,clawparams,workspace,reconstruct)
+>>>>>>> 1e1889cd8ec26a6acfe5ff98acc05e4c9f828af5
 
 
     def teardown(self):
@@ -398,9 +432,13 @@ class SharpClawSolver1D(SharpClawSolver):
         import numpy as np
 
         self.apply_q_bcs(state)
+<<<<<<< HEAD
         if state.num_aux > 0:
             self.apply_aux_bcs(state)
         q = self.qbc 
+=======
+        q = self.qbc
+>>>>>>> 1e1889cd8ec26a6acfe5ff98acc05e4c9f828af5
 
 
         grid = state.grid
@@ -409,8 +447,12 @@ class SharpClawSolver1D(SharpClawSolver):
         ixy=1
 
         if self.kernel_language=='Fortran':
+<<<<<<< HEAD
             rp1 = self.rp.rp1._cpointer
 #            dq,cfl=self.fmod.flux1(q,self.auxbc,self.dt,state.t,ixy,mx,self.num_ghost,mx,rp1)
+=======
+            from sharpclaw1 import flux1
+>>>>>>> 1e1889cd8ec26a6acfe5ff98acc05e4c9f828af5
             if not getattr(state, 'weno_mapped', False):
                 dq,cfl=flux1(q,self.auxbc,self.dt,state.t,ixy,mx,self.num_ghost,mx,
                              False, None, None, None)
@@ -498,10 +540,41 @@ class SharpClawSolver2D(SharpClawSolver):
     def __init__(self,riemann_solver=None,claw_package=None):
         r"""
         Create 2D SharpClaw solver
+<<<<<<< HEAD
+=======
 
         See :class:`SharpClawSolver2D` for more info.
         """
         self.num_dim = 2
+
+        super(SharpClawSolver2D,self).__init__()
+
+>>>>>>> 1e1889cd8ec26a6acfe5ff98acc05e4c9f828af5
+
+        See :class:`SharpClawSolver2D` for more info.
+        """
+<<<<<<< HEAD
+        self.num_dim = 2
+=======
+        self.num_ghost = (self.weno_order+1)/2
+
+        # This is a hack to deal with the fact that petsc4py
+        # doesn't allow us to change the stencil_width (num_ghost)
+        state = solution.state
+        state.set_num_ghost(self.num_ghost)
+        # End hack
+
+        self.allocate_rk_stages(solution)
+        self.set_mthlim()
+
+        state = solution.states[0]
+
+        if self.kernel_language=='Fortran':
+            from sharpclaw2 import clawparams, workspace, reconstruct
+            import sharpclaw2
+            state.set_cparam(sharpclaw2)
+            self.set_fortran_parameters(state,clawparams,workspace,reconstruct)
+>>>>>>> 1e1889cd8ec26a6acfe5ff98acc05e4c9f828af5
 
         super(SharpClawSolver2D,self).__init__(riemann_solver,claw_package)
 
@@ -546,9 +619,13 @@ class SharpClawSolver2D(SharpClawSolver):
 
         """
         self.apply_q_bcs(state)
+<<<<<<< HEAD
         if state.num_aux > 0:    
             self.apply_aux_bcs(state)
         q = self.qbc 
+=======
+        q = self.qbc
+>>>>>>> 1e1889cd8ec26a6acfe5ff98acc05e4c9f828af5
 
         grid = state.grid
 
